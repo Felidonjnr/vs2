@@ -1,0 +1,278 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  body {
+    @apply bg-[#080A0F] text-[#E8EAF0] antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    background: rgba(16, 19, 28, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .product-card {
+    background: rgba(16, 19, 28, 0.5);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  .product-card:hover {
+    border-color: rgba(201, 168, 76, 0.4);
+    transform: translateY(-4px);
+    background: rgba(20, 24, 35, 0.7);
+  }
+
+  .btn-gold {
+    background: #C9A84C;
+    color: #080A0F;
+    border: none;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    border-radius: 8px;
+  }
+
+  .btn-gold:hover {
+    background: #D4AF37;
+    box-shadow: 0 4px 15px rgba(201, 168, 76, 0.3);
+  }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #E8EAF0;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 100px;
+  }
+
+  .btn-outline:hover {
+    border-color: rgba(212, 175, 55, 0.5);
+    background: rgba(212, 175, 55, 0.05);
+    color: #D4AF37;
+  }
+
+  .input {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    color: #E8EAF0;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.3s ease;
+    width: 100%;
+  }
+
+  .input:focus {
+    border-color: rgba(212, 175, 55, 0.4);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.05);
+  }
+
+  .cat-btn {
+    padding: 8px 20px;
+    border-radius: 100px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: transparent;
+    color: #6A7090;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+  }
+
+  .cat-btn:hover {
+    border-color: rgba(212, 175, 55, 0.3);
+    color: #D4AF37;
+  }
+
+  .cat-btn.active {
+    background: #D4AF37;
+    border-color: transparent;
+    color: #05060A;
+    box-shadow: 0 8px 20px rgba(212, 175, 55, 0.2);
+  }
+
+  .crypto-card {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .crypto-card:hover {
+    border-color: rgba(212, 175, 55, 0.2);
+    background: rgba(255, 255, 255, 0.04);
+    transform: scale(1.02);
+  }
+
+  .crypto-card.selected {
+    border-color: #D4AF37;
+    background: rgba(212, 175, 55, 0.06);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.1);
+  }
+
+  .tag {
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .admin-input {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    color: #E8EAF0;
+    font-size: 13px;
+    padding: 12px 16px;
+    outline: none;
+    transition: all 0.3s ease;
+    width: 100%;
+  }
+
+  .admin-input:focus {
+    border-color: #D4AF37;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .nav-tab {
+    padding: 12px 24px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    transition: all 0.3s ease;
+    color: #6A7090;
+    border: none;
+    background: transparent;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .nav-tab:hover {
+    color: #E8EAF0;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .nav-tab.active {
+    background: rgba(212, 175, 55, 0.1);
+    color: #D4AF37;
+    box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.2);
+  }
+}
+
+  .copied {
+    background: linear-gradient(135deg, #00C853, #00A040) !important;
+    color: white !important;
+  }
+
+  .qr-upload-box {
+    border: 2px dashed rgba(201, 168, 76, 0.3);
+    border-radius: 12px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(201, 168, 76, 0.03);
+  }
+
+  .qr-upload-box:hover {
+    border-color: rgba(201, 168, 76, 0.7);
+    background: rgba(201, 168, 76, 0.07);
+  }
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.7);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.fade-up {
+  animation: fadeUp 0.4s ease both;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C9A84C;
+  border-radius: 2px;
+}

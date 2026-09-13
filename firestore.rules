@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: products
+    // Fields: id, name, category, price, stock, icon, description, tag
+    //
+    // Collection: cryptos
+    // Fields: id, name, symbol, icon, color, address, qr
+    //
+    // Collection: orders
+    // Fields: id, productId, productName, qty, total, cryptoSymbol, email, timestamp, status
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.email == "godshandudoh@gmail.com";
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'productId', 'productName', 'qty', 'total', 'email', 'timestamp', 'status']) &&
+             data.id is string &&
+             data.productId is number &&
+             data.productName is string &&
+             data.qty is number && data.qty > 0 &&
+             data.total is number && data.total >= 0 &&
+             isValidEmail(data.email) &&
+             data.timestamp is number &&
+             data.status in ['pending', 'completed', 'cancelled'];
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'lastLogin', 'lastActive']) &&
+             data.uid is string &&
+             isValidEmail(data.email) &&
+             data.lastLogin is number &&
+             data.lastActive is number;
+    }
+
+    // Products: Authenticated users can read, Admin can write
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Cryptos: Authenticated users can read, Admin can write
+    match /cryptos/{cryptoId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Orders: Authenticated users can create, Admin can read/write
+    match /orders/{orderId} {
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Reviews: Authenticated users can read, Admin can write
+    match /reviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Users: Admin can read/write all, users can read/write their own
+    match /users/{userId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId && isValidUser(request.resource.data));
+    }
+
+    // Settings: Public read for general, Admin write for all
+    match /settings/general {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Secure Settings: Public read for server, Admin write
+    match /settings/secure {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

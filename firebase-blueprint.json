@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A product available for purchase in the store",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number", "description": "Unique ID" },
+        "name": { "type": "string", "description": "Product name" },
+        "category": { "type": "string", "description": "Product category" },
+        "price": { "type": "number", "description": "Price in USD" },
+        "stock": { "type": "number", "description": "Available stock" },
+        "icon": { "type": "string", "description": "Emoji icon" },
+        "description": { "type": "string", "description": "Product description" },
+        "tag": { "type": "string", "description": "Optional tag (HOT, SALE, etc)" }
+      },
+      "required": ["id", "name", "price", "stock"]
+    },
+    "Crypto": {
+      "title": "Crypto",
+      "description": "A cryptocurrency payment method",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID" },
+        "name": { "type": "string", "description": "Currency name" },
+        "symbol": { "type": "string", "description": "Currency symbol" },
+        "icon": { "type": "string", "description": "Emoji icon" },
+        "color": { "type": "string", "description": "Hex color" },
+        "address": { "type": "string", "description": "Wallet address" },
+        "qr": { "type": "string", "description": "Base64 QR code image" }
+      },
+      "required": ["id", "name", "symbol", "address"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Order ID" },
+        "productId": { "type": "number", "description": "Product ID" },
+        "productName": { "type": "string", "description": "Product name" },
+        "qty": { "type": "number", "description": "Quantity" },
+        "total": { "type": "number", "description": "Total price" },
+        "cryptoSymbol": { "type": "string", "description": "Crypto used for payment" },
+        "email": { "type": "string", "description": "Customer email" },
+        "timestamp": { "type": "number", "description": "Order timestamp" },
+        "status": { "type": "string", "enum": ["pending", "completed", "cancelled"], "description": "Order status" }
+      },
+      "required": ["id", "productId", "productName", "qty", "total", "email", "timestamp", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A customer review",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID" },
+        "name": { "type": "string", "description": "Reviewer name" },
+        "rating": { "type": "number", "description": "Rating 1-5" },
+        "text": { "type": "string", "description": "Review text" },
+        "date": { "type": "string", "description": "Review date" },
+        "avatar": { "type": "string", "description": "Optional avatar URL" }
+      },
+      "required": ["id", "name", "rating", "text", "date"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A registered user record",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase UID" },
+        "email": { "type": "string", "description": "User email" },
+        "lastLogin": { "type": "number", "description": "Timestamp of last login" },
+        "lastActive": { "type": "number", "description": "Timestamp of last activity" },
+        "createdAt": { "type": "number", "description": "Timestamp of account creation" }
+      },
+      "required": ["uid", "email", "lastLogin", "lastActive", "createdAt"]
+    },
+    "SecureSettings": {
+      "title": "SecureSettings",
+      "description": "Hidden payment settings for high-value transactions",
+      "type": "object",
+      "properties": {
+        "threshold": { "type": "number", "description": "Order total threshold" },
+        "wallets": { "type": "object", "description": "Map of crypto ID to secure wallet address" },
+        "qrs": { "type": "object", "description": "Map of crypto ID to secure QR code URL" }
+      },
+      "required": ["threshold", "wallets", "qrs"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Store products. Read: Auth, Write: Admin."
+    },
+    "/cryptos/{cryptoId}": {
+      "schema": "Crypto",
+      "description": "Payment methods. Read: Auth, Write: Admin."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders. Create: Auth, Read/Write: Admin."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Customer reviews. Read: Auth, Write: Admin."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User records. Read: Admin, Write: Self."
+    },
+    "/settings/secure": {
+      "schema": "SecureSettings",
+      "description": "Hidden payment settings. Read/Write: Super Admin only."
+    }
+  }
+}
