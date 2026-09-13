@@ -2,9 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ADMIN_PASSWORD } from '../constants';
 import { Product, Crypto, Order, Review, UserRecord } from '../types';
-import { db, auth, OperationType, handleFirestoreError } from '../firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, query, orderBy } from 'firebase/firestore';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { supabase, OperationType, handleSupabaseError } from '../supabase';
 
 interface AdminPageProps {
   products: Product[];
@@ -19,7 +17,7 @@ interface AdminPageProps {
 }
 
 export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cryptos, setCryptos, reviews, setReviews, onBack, secureMode, setSecureMode }) => {
-  const [isFirebaseAuth, setIsFirebaseAuth] = useState(false);
+  const [isSupabaseAuth, setIsSupabaseAuth] = useState(false);
   const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [tab, setTab] = useState("orders");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -38,60 +36,86 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
   const [statusFilter, setStatusFilter] = useState<Order['status'] | 'all'>('all');
   const fileRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  // Sync orders from Firebase
+  // Fetch initial data
   useEffect(() => {
-    if (!isFirebaseAuth) return;
-    const q = query(collection(db, "orders"), orderBy("timestamp", "desc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setOrders(snapshot.docs.map(doc => doc.data() as Order));
-    }, (err) => handleFirestoreError(err, OperationType.GET, "orders"));
-    return () => unsub();
-  }, [isFirebaseAuth]);
+    if (!isSupabaseAuth) return;
 
-  // Sync users from Firebase
-  useEffect(() => {
-    if (!isFirebaseAuth) return;
-    const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
-      setUsers(snapshot.docs.map(doc => doc.data() as UserRecord));
-    }, (err) => handleFirestoreError(err, OperationType.GET, "users"));
-    return () => unsub();
-  }, [isFirebaseAuth]);
+    const fetchOrders = async () => {
+      const { data, error } = await supabase.from('orders').select('*').order('timestamp', { ascending: false });
+      if (error) handleSupabaseError(error, OperationType.GET, 'orders');
+      else setOrders(data as Order[]);
+    };
 
-  // Sync settings from Firebase
-  useEffect(() => {
-    if (!isFirebaseAuth) return;
-    const unsub = onSnapshot(doc(db, "settings", "general"), (snapshot) => {
-      if (snapshot.exists()) {
-        setSettings(snapshot.data() as { telegramLink: string });
-      }
-    }, (err) => handleFirestoreError(err, OperationType.GET, "settings/general"));
-    return () => unsub();
-  }, [isFirebaseAuth]);
+    const fetchUsers = async () => {
+      const { data, error } = await supabase.from('users').select('*');
+      if (error) handleSupabaseError(error, OperationType.GET, 'users');
+      else setUsers(data as any[]); // Using any here to bypass exact match of UID vs uid for now
+    };
 
-  // Sync secure settings from Firebase
+    const fetchSettings = async () => {
+      const { data, error } = await supabase.from('settings').select('*').eq('id', 'general').single();
+      if (error && error.code !== 'PGRST116') handleSupabaseError(error, OperationType.GET, 'settings');
+      else if (data) setSettings({ telegramLink: data.telegramlink });
+    };
+
+    fetchOrders();
+    fetchUsers();
+    fetchSettings();
+
+    const orderSub = supabase.channel('orders-admin-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchOrders)
+      .subscribe();
+      
+    const userSub = supabase.channel('users-admin-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, fetchUsers)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(orderSub);
+      supabase.removeChannel(userSub);
+    };
+  }, [isSupabaseAuth]);
+
+  // Sync secure settings from Supabase
   useEffect(() => {
-    if (!isFirebaseAuth || !secureMode) return;
-    const unsub = onSnapshot(doc(db, "settings", "secure"), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as any;
-        setSecureSettings(data);
+    if (!isSupabaseAuth || !secureMode) return;
+    
+    const fetchSecureSettings = async () => {
+      const { data, error } = await supabase.from('secure_settings').select('*').eq('id', 'secure').single();
+      if (error && error.code !== 'PGRST116') {
+        handleSupabaseError(error, OperationType.GET, 'secure_settings');
+      } else if (data) {
+        setSecureSettings({
+          threshold: Number(data.threshold) || 1500,
+          wallets: data.wallets || {},
+          qrs: data.qrs || {}
+        });
         setLocalSecureWallets(data.wallets || {});
         setLocalThreshold(String(data.threshold || 1500));
       }
-    }, (err) => handleFirestoreError(err, OperationType.GET, "settings/secure"));
-    return () => unsub();
-  }, [isFirebaseAuth, secureMode]);
+    };
+    fetchSecureSettings();
+
+    const secureSub = supabase.channel('secure-settings-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'secure_settings' }, fetchSecureSettings)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(secureSub);
+    };
+  }, [isSupabaseAuth, secureMode]);
 
   // Handle Admin Auth Check
   useEffect(() => {
-    const user = auth.currentUser;
-    if (user && user.email === "godshandudoh@gmail.com") {
-      setIsFirebaseAuth(true);
-      setAuthEmail(user.email);
-    } else {
-      setIsFirebaseAuth(false);
-      setAuthEmail(null);
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user && session.user.email === "godshandudoh@gmail.com") {
+        setIsSupabaseAuth(true);
+        setAuthEmail(session.user.email);
+      } else {
+        setIsSupabaseAuth(false);
+        setAuthEmail(null);
+      }
+    });
   }, []);
 
   const saveMsg = (msg: string) => { 
@@ -101,18 +125,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
   
   const updateProduct = async (id: number, field: keyof Product, value: any) => {
     try {
-      await setDoc(doc(db, "products", id.toString()), { ...products.find(p => p.id === id), [field]: value }, { merge: true });
+      const existing = products.find(p => p.id === id);
+      if (!existing) return;
+      const { error } = await supabase.from('products').upsert({ ...existing, [field]: value });
+      if (error) throw error;
     } catch (e) { 
-      handleFirestoreError(e, OperationType.WRITE, `products/${id}`);
+      handleSupabaseError(e, OperationType.WRITE, `products/${id}`);
     }
   };
   
   const deleteProduct = async (id: number) => { 
     try {
-      await deleteDoc(doc(db, "products", id.toString()));
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
       saveMsg("Product deleted."); 
     } catch (e) { 
-      handleFirestoreError(e, OperationType.DELETE, `products/${id}`);
+      handleSupabaseError(e, OperationType.DELETE, `products/${id}`);
     }
   };
   
@@ -122,7 +150,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
       return; 
     }
     const id = Date.now();
-    const p: Product = { 
+    const p = { 
       ...newProd, 
       id, 
       price: Number(newProd.price), 
@@ -130,19 +158,23 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
       tag: newProd.tag || null 
     };
     try {
-      await setDoc(doc(db, "products", id.toString()), p);
+      const { error } = await supabase.from('products').insert([p]);
+      if (error) throw error;
       setNewProd({ name: "", category: "Shopping", price: "", stock: "", icon: "🎁", description: "", tag: "" });
       saveMsg("✅ Product added!");
     } catch (e) { 
-      handleFirestoreError(e, OperationType.WRITE, `products/${id}`);
+      handleSupabaseError(e, OperationType.WRITE, `products/${id}`);
     }
   };
   
   const updateCryptoField = async (id: string, field: keyof Crypto, value: string | null) => {
     try {
-      await setDoc(doc(db, "cryptos", id), { ...cryptos.find(c => c.id === id), [field]: value }, { merge: true });
+      const existing = cryptos.find(c => c.id === id);
+      if (!existing) return;
+      const { error } = await supabase.from('cryptos').upsert({ ...existing, [field]: value });
+      if (error) throw error;
     } catch (e) { 
-      handleFirestoreError(e, OperationType.WRITE, `cryptos/${id}`);
+      handleSupabaseError(e, OperationType.WRITE, `cryptos/${id}`);
     }
   };
 
@@ -153,20 +185,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
     }
     const id = newCrypto.symbol.toLowerCase();
     try {
-      await setDoc(doc(db, "cryptos", id), { ...newCrypto, id, qr: null });
+      const { error } = await supabase.from('cryptos').insert([{ ...newCrypto, id, qr: null }]);
+      if (error) throw error;
       setNewCrypto({ name: "", symbol: "", icon: "₿", color: "#F7931A", address: "" });
       saveMsg("✅ Crypto added!");
     } catch (e) { 
-      handleFirestoreError(e, OperationType.WRITE, `cryptos/${id}`);
+      handleSupabaseError(e, OperationType.WRITE, `cryptos/${id}`);
     }
   };
 
   const deleteCrypto = async (id: string) => {
     try {
-      await deleteDoc(doc(db, "cryptos", id));
+      const { error } = await supabase.from('cryptos').delete().eq('id', id);
+      if (error) throw error;
       saveMsg("Crypto deleted.");
     } catch (e) { 
-      handleFirestoreError(e, OperationType.DELETE, `cryptos/${id}`);
+      handleSupabaseError(e, OperationType.DELETE, `cryptos/${id}`);
     }
   };
   
@@ -182,10 +216,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     try {
-      await updateDoc(doc(db, "orders", orderId), { status });
+      const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+      if (error) throw error;
       saveMsg(`Order ${status}`);
     } catch (e) { 
-      handleFirestoreError(e, OperationType.UPDATE, `orders/${orderId}`);
+      handleSupabaseError(e, OperationType.UPDATE, `orders/${orderId}`);
     }
   };
 
@@ -195,46 +230,49 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
       return;
     }
     const id = Date.now().toString();
-    const r: Review = {
+    const r = {
       ...newReview,
       id,
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
     try {
-      await setDoc(doc(db, "reviews", id), r);
+      const { error } = await supabase.from('reviews').insert([r]);
+      if (error) throw error;
       setNewReview({ name: "", rating: 5, text: "", avatar: "" });
       saveMsg("✅ Review added!");
     } catch (e) { 
-      handleFirestoreError(e, OperationType.WRITE, `reviews/${id}`);
+      handleSupabaseError(e, OperationType.WRITE, `reviews/${id}`);
     }
   };
 
   const deleteReview = async (id: string) => {
     try {
-      await deleteDoc(doc(db, "reviews", id));
+      const { error } = await supabase.from('reviews').delete().eq('id', id);
+      if (error) throw error;
       saveMsg("Review deleted.");
     } catch (e) { 
-      handleFirestoreError(e, OperationType.DELETE, `reviews/${id}`);
+      handleSupabaseError(e, OperationType.DELETE, `reviews/${id}`);
     }
   };
 
   const updateSettings = async () => {
     try {
-      await setDoc(doc(db, "settings", "general"), settings);
+      const { error } = await supabase.from('settings').upsert({ id: 'general', telegramlink: settings.telegramLink });
+      if (error) throw error;
       saveMsg("✅ Settings updated!");
     } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, "settings/general");
+      handleSupabaseError(e, OperationType.WRITE, "settings/general");
     }
   };
 
   const updateSecureSettings = async (field: string, value: any) => {
     try {
       const newSettings = { ...secureSettings, [field]: value };
-      await setDoc(doc(db, "settings", "secure"), newSettings, { merge: true });
-      // Local state is updated by onSnapshot, but we can set it here for immediate feedback
+      const { error } = await supabase.from('secure_settings').upsert({ id: 'secure', ...newSettings });
+      if (error) throw error;
       setSecureSettings(newSettings);
     } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, "settings/secure");
+      handleSupabaseError(e, OperationType.WRITE, "settings/secure");
     }
   };
 
@@ -283,7 +321,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
     return matchesSearch && matchesStatus;
   });
 
-  if (!isFirebaseAuth) return (
+  if (!isSupabaseAuth) return (
     <div className="max-w-[440px] mx-auto mt-24 px-5">
       <button 
         className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#6A7090] hover:text-[#D4AF37] transition-colors mb-8" 
@@ -297,11 +335,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
           <div className="text-5xl mb-6">🚫</div>
           <h2 className="text-2xl font-bold mb-3 text-white">Access Restricted</h2>
           <p className="text-sm text-[#6A7090] mb-8 leading-relaxed">
-            The account <span className="text-[#C9A84C] font-bold">{auth.currentUser?.email}</span> does not have admin permissions.
+            The account <span className="text-[#C9A84C] font-bold">{authEmail}</span> does not have admin permissions.
           </p>
           <button 
             className="w-full bg-white/5 border border-white/10 hover:bg-white/10 py-4 rounded-xl text-[11px] font-bold tracking-widest transition-all text-white uppercase" 
-            onClick={() => auth.signOut()}
+            onClick={() => supabase.auth.signOut()}
           >
             Sign Out
           </button>

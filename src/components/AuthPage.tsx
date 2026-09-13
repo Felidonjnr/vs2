@@ -1,66 +1,35 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, db } from '../firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signInWithPopup, 
-  GoogleAuthProvider,
-  sendPasswordResetEmail,
-  User
-} from 'firebase/auth';
+import { supabase } from '../supabase';
 
 export const AuthPage: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-
-  const saveUserRecord = async (user: User, isNew: boolean) => {
-    try {
-      const userRef = doc(db, "users", user.uid);
-      const now = Date.now();
-      
-      if (isNew) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email,
-          lastLogin: now,
-          lastActive: now,
-          createdAt: now
-        });
-      } else {
-        await setDoc(userRef, {
-          lastLogin: now,
-          lastActive: now
-        }, { merge: true });
-      }
-    } catch (err) {
-      console.error("Error saving user record:", err);
-    }
-  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setMessage(null);
     setLoading(true);
     try {
       if (isSignUp) {
-        const res = await createUserWithEmailAndPassword(auth, email, password);
-        await saveUserRecord(res.user, true);
+        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+        if (signUpError) throw signUpError;
+        
+        if (data?.user && !data?.session) {
+          setMessage("Registration successful! Please check your email to verify your account. If you don't require verification, disable it in Supabase.");
+        }
       } else {
-        const res = await signInWithEmailAndPassword(auth, email, password);
-        await saveUserRecord(res.user, false);
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
       }
     } catch (err: any) {
-      if (err.code === 'auth/operation-not-allowed') {
-        setError("Sign-in method disabled. Please enable 'Email/Password' in your Firebase Console (Authentication > Sign-in method).");
-      } else {
-        setError(err.message.replace("Firebase: ", ""));
-      }
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -68,18 +37,12 @@ export const AuthPage: React.FC = () => {
 
   const handleGoogle = async () => {
     setError(null);
+    setMessage(null);
     try {
-      const provider = new GoogleAuthProvider();
-      const res = await signInWithPopup(auth, provider);
-      const userRef = doc(db, "users", res.user.uid);
-      const userDoc = await getDoc(userRef);
-      await saveUserRecord(res.user, !userDoc.exists());
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+      if (error) throw error;
     } catch (err: any) {
-      if (err.code === 'auth/operation-not-allowed') {
-        setError("Google sign-in disabled. Please enable 'Google' in your Firebase Console (Authentication > Sign-in method).");
-      } else {
-        setError(err.message.replace("Firebase: ", ""));
-      }
+      setError("Google sign-in is not configured yet in your Supabase project. " + err.message);
     }
   };
 
@@ -89,11 +52,13 @@ export const AuthPage: React.FC = () => {
       return;
     }
     try {
-      await sendPasswordResetEmail(auth, email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
       setResetSent(true);
       setError(null);
+      setMessage("Recovery link dispatched to your inbox.");
     } catch (err: any) {
-      setError(err.message.replace("Firebase: ", ""));
+      setError(err.message);
     }
   };
 
@@ -170,14 +135,14 @@ export const AuthPage: React.FC = () => {
               </motion.div>
             )}
 
-            {resetSent && (
+            {message && (
               <motion.div 
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] p-4 rounded-xl text-center"
               >
-                Recovery link dispatched to your inbox.
+                {message}
               </motion.div>
             )}
           </AnimatePresence>

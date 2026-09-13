@@ -1,5 +1,5 @@
 import React from 'react';
-import { auth } from '../firebase';
+import { supabase } from '../supabase';
 
 interface NavProps {
   onHome: () => void;
@@ -15,7 +15,7 @@ export const Nav: React.FC<NavProps> = ({ onHome, onAdmin, user, secureMode }) =
         <div className="flex items-center gap-3 sm:gap-4 cursor-pointer group" onClick={onHome}>
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#B8860B] flex items-center justify-center text-lg sm:text-xl shadow-[0_8px_20px_rgba(212,175,55,0.2)] group-hover:scale-110 transition-transform duration-500">⚡</div>
           <div>
-            <div className="text-lg sm:text-xl font-serif font-bold tracking-tight leading-none text-white">VaultCards</div>
+            <div className="text-lg sm:text-xl font-serif font-bold tracking-tight leading-none text-white">VaultShop</div>
             <div className="text-[7px] sm:text-[8px] text-[#D4AF37] tracking-[0.25em] font-black uppercase mt-1">Digital Marketplace</div>
           </div>
         </div>
@@ -40,7 +40,7 @@ export const Nav: React.FC<NavProps> = ({ onHome, onAdmin, user, secureMode }) =
               <div className="text-xs text-white/90 font-medium">{user.email}</div>
             </div>
             <button 
-              onClick={() => auth.signOut()}
+              onClick={() => supabase.auth.signOut()}
               className="text-[9px] sm:text-[10px] font-black text-[#6A7090] hover:text-[#D4AF37] transition-all border border-white/10 hover:border-[#D4AF37]/40 px-3 sm:px-5 py-2 sm:py-2.5 rounded-full tracking-widest uppercase whitespace-nowrap"
             >
               Sign Out

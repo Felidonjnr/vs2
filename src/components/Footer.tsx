@@ -6,12 +6,12 @@ export const Footer: React.FC = () => {
       <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#C9A84C] to-[#A07830] flex items-center justify-center text-sm">⚡</div>
-          <span className="text-lg font-bold text-white">VaultCards</span>
+          <span className="text-lg font-bold text-white">VaultShop</span>
         </div>
         <div className="flex gap-8 flex-wrap justify-center">
           {["Terms", "Privacy", "FAQ", "Support"].map(l => <span key={l} className="text-sm text-[#6A7090] hover:text-[#C9A84C] transition-colors cursor-pointer">{l}</span>)}
         </div>
-        <span className="text-xs text-[#5A607A]">© 2026 VaultCards. All rights reserved.</span>
+        <span className="text-xs text-[#5A607A]">© 2026 VaultShop. All rights reserved.</span>
       </div>
     </footer>
   );

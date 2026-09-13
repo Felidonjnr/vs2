@@ -17,9 +17,8 @@ import { AdminPage } from "./components/AdminPage";
 import { AuthPage } from "./components/AuthPage";
 import { INITIAL_PRODUCTS, INITIAL_CRYPTOS } from "./constants";
 import { Product, Crypto, Order, Review } from "./types";
-import { db, auth, OperationType, handleFirestoreError } from "./firebase";
-import { collection, onSnapshot, setDoc, doc } from "firebase/firestore";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { supabase, OperationType, handleSupabaseError } from "./supabase";
+import { User } from "@supabase/supabase-js";
 import { TELEGRAM_LINK } from "./constants";
 
 // Simulated stock logic: Fluctuates 4 times a day
@@ -50,12 +49,18 @@ function AppContent() {
   
   // Track Auth State
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (!u) setHasRedirected(false); // Reset redirect flag on logout
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setAuthLoading(false);
     });
-    return () => unsub();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) setHasRedirected(false);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Update lastActive timestamp
@@ -64,59 +69,80 @@ function AppContent() {
     
     const updateActivity = async () => {
       try {
-        const userRef = doc(db, "users", user.uid);
-        await setDoc(userRef, { lastActive: Date.now() }, { merge: true });
+        await supabase
+          .from('users')
+          .upsert({ uid: user.id, email: user.email, last_active: Date.now() });
       } catch (e) {
         // Silently fail activity tracking
       }
     };
 
-    // Update on mount and then every 2 minutes
     updateActivity();
     const interval = setInterval(updateActivity, 120000);
-    
-    // Also update on route change (location is already in scope)
     updateActivity();
 
     return () => clearInterval(interval);
   }, [user, location.pathname]);
 
-  // Sync products, cryptos, and reviews from Firebase
+  // Sync products, cryptos, and reviews from Supabase
   useEffect(() => {
-    // Settings sync (available even if not logged in for support)
-    const unsubS = onSnapshot(doc(db, "settings", "general"), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as { telegramLink: string };
-        if (data.telegramLink) {
-          setSettings(data);
-        }
+    const fetchSettings = async () => {
+      const { data, error } = await supabase.from('settings').select('*').eq('id', 'general').single();
+      if (data && data.telegramlink) {
+        setSettings({ telegramLink: data.telegramlink });
       }
-    }, (err) => handleFirestoreError(err, OperationType.GET, "settings/general"));
+    };
+    fetchSettings();
 
-    if (!user) return () => unsubS();
+    const settingsSub = supabase.channel('settings-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, fetchSettings)
+      .subscribe();
 
-    const unsubP = onSnapshot(collection(db, "products"), (snapshot) => {
-      const prods = snapshot.docs.map(doc => {
-        const data = doc.data() as Product;
-        return { ...data, stock: getSimulatedStock(data.stock, data.id) };
-      });
-      if (prods.length > 0) setProducts(prods);
-    }, (err) => handleFirestoreError(err, OperationType.GET, "products"));
+    if (!user) {
+      return () => {
+        supabase.removeChannel(settingsSub);
+      };
+    }
 
-    const unsubC = onSnapshot(collection(db, "cryptos"), (snapshot) => {
-      const crs = snapshot.docs.map(doc => doc.data() as Crypto);
-      if (crs.length > 0) setCryptos(crs);
-    }, (err) => handleFirestoreError(err, OperationType.GET, "cryptos"));
+    const fetchProducts = async () => {
+      const { data } = await supabase.from('products').select('*');
+      if (data) {
+        const prods = data.map(doc => ({ ...doc, stock: getSimulatedStock(Number(doc.stock), doc.id) })) as Product[];
+        setProducts(prods.length > 0 ? prods : INITIAL_PRODUCTS);
+      }
+    };
 
-    const unsubR = onSnapshot(collection(db, "reviews"), (snapshot) => {
-      const revs = snapshot.docs.map(doc => doc.data() as Review);
-      setReviews(revs);
-    }, (err) => handleFirestoreError(err, OperationType.GET, "reviews"));
+    const fetchCryptos = async () => {
+      const { data } = await supabase.from('cryptos').select('*');
+      if (data) {
+        setCryptos(data.length > 0 ? (data as Crypto[]) : INITIAL_CRYPTOS);
+      }
+    };
 
-    return () => { unsubP(); unsubC(); unsubR(); unsubS(); };
+    const fetchReviews = async () => {
+      const { data } = await supabase.from('reviews').select('*');
+      if (data) {
+        setReviews(data as Review[]);
+      }
+    };
+
+    fetchProducts();
+    fetchCryptos();
+    fetchReviews();
+
+    const dataSub = supabase.channel('data-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchProducts)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cryptos' }, fetchCryptos)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, fetchReviews)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(settingsSub);
+      supabase.removeChannel(dataSub);
+    };
   }, [user]);
 
-  // Redirect admin directly to dashboard (only once per session/login)
+  // Redirect admin directly to dashboard
   useEffect(() => {
     if (user && user.email === "godshandudoh@gmail.com" && location.pathname === "/" && !hasRedirected) {
       setHasRedirected(true);
@@ -240,7 +266,7 @@ function PaymentPageRoute({ products, cryptos, navigate }: { products: Product[]
     };
     
     try {
-      await setDoc(doc(db, "orders", orderId), order);
+      await supabase.from('orders').insert([order]);
       
       // Send confirmation email
       fetch("/api/send-confirmation", {

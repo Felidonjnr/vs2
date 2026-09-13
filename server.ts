@@ -3,15 +3,16 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { Resend } from "resend";
 import dotenv from "dotenv";
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
-import firebaseConfig from "./firebase-applet-config.json" with { type: "json" };
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+
+// Initialize Supabase client
+const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://lddelqtdfmjnzlwzylzz.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZGVscXRkZm1qbnpsd3p5bHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyNzgwMjMsImV4cCI6MjEwNDg1NDAyM30.mX3TsDOOD30oWaVczgzmraft3CNGASsJdarCVntWSBs';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function startServer() {
   const app = express();
@@ -25,15 +26,15 @@ async function startServer() {
     const orderAmount = Number(amount);
 
     try {
-      // Try to get from Firestore first
-      const secureDoc = await getDoc(doc(db, "settings", "secure"));
-      let threshold = Number(process.env.SECURE_THRESHOLD) || 1500;
-      let secureAddress = process.env[`SECURE_WALLET_${String(cryptoId).toUpperCase()}`];
-      let secureQr = process.env[`SECURE_QR_${String(cryptoId).toUpperCase()}`];
+      // Get settings entirely from Supabase
+      const { data, error } = await supabase.from('secure_settings').select('*').eq('id', 'secure').single();
+      
+      let threshold = 1500;
+      let secureAddress = null;
+      let secureQr = null;
 
-      if (secureDoc.exists()) {
-        const data = secureDoc.data();
-        if (data.threshold !== undefined) threshold = Number(data.threshold);
+      if (data && !error) {
+        if (data.threshold !== undefined && data.threshold !== null) threshold = Number(data.threshold);
         if (data.wallets && data.wallets[cryptoId as string]) {
           secureAddress = data.wallets[cryptoId as string];
         }
@@ -77,13 +78,13 @@ async function startServer() {
       const fromEmail = process.env.EMAIL_FROM || "onboarding@resend.dev";
       
       const { data, error } = await resend.emails.send({
-        from: `VaultCards <${fromEmail}>`, 
+        from: `VaultShop <${fromEmail}>`, 
         to: [email],
         subject: `Order Confirmation - ${orderId}`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
             <h2 style="color: #C9A84C;">Order Confirmation</h2>
-            <p>Thank you for your order at <strong>VaultCards</strong>!</p>
+            <p>Thank you for your order at <strong>VaultShop</strong>!</p>
             <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <p><strong>Order ID:</strong> ${orderId}</p>
               <p><strong>Product:</strong> ${productName}</p>
