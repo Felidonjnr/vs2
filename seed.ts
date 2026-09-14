@@ -1,4 +1,12 @@
-export const INITIAL_PRODUCTS = [
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+dotenv.config();
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://lddelqtdfmjnzlwzylzz.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey as string);
+
+const INITIAL_PRODUCTS = [
   { id: 1, name: "Amazon Gift Card", category: "Shopping", price: 25, stock: 14, icon: "🛒", description: "Shop millions of items instantly on Amazon. Works globally.", tag: "HOT" },
   { id: 2, name: "iTunes Gift Card", category: "Entertainment", price: 15, stock: 7, icon: "🎵", description: "Buy music, movies, apps and more from Apple.", tag: "SALE" },
   { id: 3, name: "Steam Wallet Code", category: "Gaming", price: 20, stock: 22, icon: "🎮", description: "Top up your Steam wallet and buy any game.", tag: null },
@@ -16,17 +24,11 @@ export const INITIAL_PRODUCTS = [
   { id: 15, name: "Uber Eats Card", category: "Shopping", price: 25, stock: 20, icon: "🍔", description: "Delicious food delivered to your door.", tag: "HOT" }
 ];
 
-export const INITIAL_CRYPTOS = [
-  { id: "btc", name: "Bitcoin", symbol: "BTC", icon: "₿", color: "#F7931A", address: "Enter your BTC address here", qr: null },
-  { id: "eth", name: "Ethereum", symbol: "ETH", icon: "Ξ", color: "#627EEA", address: "Enter your ETH address here", qr: null },
-  { id: "usdt", name: "Tether USDT", symbol: "USDT", icon: "₮", color: "#26A17B", address: "Enter your USDT address here", qr: null },
-  { id: "ltc", name: "Litecoin", symbol: "LTC", icon: "Ł", color: "#BFBBBB", address: "Enter your LTC address here", qr: null },
-];
-
-export const ADMIN_PASSWORD = "vaultcards2025";
-export const TELEGRAM_LINK = "https://t.me/yourusername";
-export const CATEGORIES = ["All", "Gaming", "Streaming", "Shopping", "Entertainment", "Mobile"];
-
-export function generateOrderId() {
-  return "VC-" + Math.floor(10000 + Math.random() * 90000);
+async function seed() {
+  for (const product of INITIAL_PRODUCTS) {
+    const { error } = await supabase.from('products').upsert([product]);
+    if (error) console.error("Error inserting", product.name, error);
+  }
+  console.log("Seeded products");
 }
+seed();

@@ -82,14 +82,14 @@ export const AuthPage: React.FC = () => {
             ⚡
           </motion.div>
           <h1 className="text-3xl font-serif font-black text-white mb-3 tracking-tight">
-            {isSignUp ? "Join the Elite" : "Welcome Back"}
+            {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-sm text-[#6A7090] font-light">Access the world's most exclusive digital assets</p>
+          <p className="text-sm text-[#6A7090] font-light">Sign in to access your digital products</p>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] text-[#6A7090] font-black tracking-[0.2em] uppercase ml-1">Identity (Email)</label>
+            <label className="text-[10px] text-[#6A7090] font-black tracking-[0.2em] uppercase ml-1">Email Address</label>
             <input 
               type="email" 
               className="admin-input py-4 px-5 text-sm bg-white/2 border-white/5 focus:border-[#D4AF37]/30 transition-all rounded-2xl" 
@@ -102,7 +102,7 @@ export const AuthPage: React.FC = () => {
           
           <div className="space-y-2">
             <div className="flex justify-between items-center ml-1">
-              <label className="text-[10px] text-[#6A7090] font-black tracking-[0.2em] uppercase">Access Key (Password)</label>
+              <label className="text-[10px] text-[#6A7090] font-black tracking-[0.2em] uppercase">Password</label>
               {!isSignUp && (
                 <button 
                   type="button" 
@@ -154,13 +154,13 @@ export const AuthPage: React.FC = () => {
             disabled={loading}
             className="btn-gold w-full py-5 rounded-2xl text-[12px] font-black tracking-[0.2em] uppercase shadow-[0_20px_40px_rgba(212,175,55,0.15)]"
           >
-            {loading ? "AUTHENTICATING..." : isSignUp ? "ESTABLISH ACCOUNT" : "SECURE ACCESS"}
+            {loading ? "AUTHENTICATING..." : isSignUp ? "CREATE ACCOUNT" : "SIGN IN"}
           </motion.button>
         </form>
 
         <div className="relative my-10">
           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
-          <div className="relative flex justify-center text-[9px] uppercase tracking-[0.3em]"><span className="bg-[#10131C] px-6 text-[#5A607A] font-black">Alternative Protocol</span></div>
+          <div className="relative flex justify-center text-[9px] uppercase tracking-[0.3em]"><span className="bg-[#10131C] px-6 text-[#5A607A] font-black">Or Continue With</span></div>
         </div>
 
         <motion.button 

@@ -5,8 +5,15 @@ export interface Product {
   price: number;
   stock: number;
   icon: string;
+  image?: string;
+  rating?: number;
   description: string;
   tag: string | null;
+}
+
+export interface CartItem {
+  product: Product;
+  qty: number;
 }
 
 export interface Crypto {

@@ -1,5 +1,8 @@
 {
   "name": "VaultShop",
-  "description": "A premium digital gift card and voucher store with crypto payments and admin dashboard.",
-  "requestFramePermissions": []
+  "description": "Your trusted store for premium software keys, digital subscriptions, and exclusive products. Every key is verified and delivered instantly.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

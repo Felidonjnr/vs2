@@ -1,44 +1,42 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { generateOrderId } from '../constants';
-
-interface Product {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  stock: number;
-  icon: string;
-  description: string;
-  tag: string | null;
-}
-
-interface Crypto {
-  id: string;
-  name: string;
-  symbol: string;
-  icon: string;
-  color: string;
-  address: string;
-  qr: string | null;
-}
+import { CartItem, Crypto } from '../types';
 
 interface PaymentPageProps {
-  product: Product;
-  qty: number;
+  cart: CartItem[];
   cryptos: Crypto[];
   onBack: () => void;
   onPaid: (orderId: string, email: string, cryptoSymbol: string) => void;
 }
 
-export const PaymentPage: React.FC<PaymentPageProps> = ({ product, qty, cryptos, onBack, onPaid }) => {
+export const PaymentPage: React.FC<PaymentPageProps> = ({ cart, cryptos, onBack, onPaid }) => {
+  const [step, setStep] = useState<1 | 2>(1);
   const [selected, setSelected] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
   const [orderId] = useState(generateOrderId);
   const [secureConfig, setSecureConfig] = useState<{ address: string; qr: string | null } | null>(null);
   
-  const total = product.price * qty;
+  // Timer state (15 minutes)
+  const [timeLeft, setTimeLeft] = useState(15 * 60);
+
+  const total = cart.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
   const crypto = cryptos.find(c => c.id === selected);
+
+  // Timer countdown
+  useEffect(() => {
+    if (step === 2 && timeLeft > 0) {
+      const timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [step, timeLeft]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   // Check for secure routing when a crypto is selected
   useEffect(() => {
@@ -64,110 +62,219 @@ export const PaymentPage: React.FC<PaymentPageProps> = ({ product, qty, cryptos,
 
   const copy = () => {
     const addressToCopy = secureConfig?.address || crypto?.address;
-    if (addressToCopy) { 
-      navigator.clipboard.writeText(addressToCopy).catch(() => {}); 
-      setCopied(true); 
-      setTimeout(() => setCopied(false), 2000); 
-    }
+    if (addressToCopy) {
+       navigator.clipboard.writeText(addressToCopy).catch(() => {});
+       setCopied(true);
+       setTimeout(() => setCopied(false), 2000);
+     }
   };
 
   const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-  const canPay = selected && isValidEmail(email);
+  const canProceedToPayment = selected && isValidEmail(email);
 
   return (
     <div className="max-w-[700px] mx-auto px-5 pb-20 pt-10">
-      <button className="btn-outline px-4 py-2 rounded-lg text-[13px] mb-7" onClick={onBack}>← Back</button>
-      
-      <div className="card fade-up p-6 mb-5">
-        <div className="text-xs text-[#C9A84C] font-bold tracking-[0.1em] mb-4">CUSTOMER INFORMATION</div>
-        <div className="text-xs text-[#6A7090] mb-2">Email Address (For delivery)</div>
-        <input 
-          type="email" 
-          placeholder="your@email.com" 
-          className="admin-input py-3 px-4 text-sm" 
-          value={email} 
-          onChange={e => setEmail(e.target.value)} 
-        />
-        {!isValidEmail(email) && email.length > 0 && (
-          <div className="text-[10px] text-[#FF4444] mt-1.5 ml-1">Please enter a valid email address</div>
-        )}
-      </div>
-
-      <div className="card fade-up p-6 mb-5">
-        <div className="text-xs text-[#C9A84C] font-bold tracking-[0.1em] mb-4">ORDER SUMMARY</div>
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-[rgba(201,168,76,0.1)] border border-[rgba(201,168,76,0.2)] flex items-center justify-center text-xl">{product.icon}</div>
-            <div>
-              <div className="font-bold text-[15px] text-[#E8EAF0]">{product.name}</div>
-              <div className="text-xs text-[#6A7090]">Qty: {qty} unit{qty > 1 ? "s" : ""}</div>
-            </div>
-          </div>
-          <div className="text-2xl font-black text-[#C9A84C]">${total}</div>
-        </div>
-      </div>
-      <div className="card fade-up p-6 mb-5">
-        <div className="text-xs text-[#C9A84C] font-bold tracking-[0.1em] mb-4">SELECT PAYMENT METHOD</div>
-        <div className="grid grid-cols-2 gap-3">
-          {cryptos.map(c => (
-            <div key={c.id} className={`crypto-card ${selected === c.id ? "selected" : ""}`} onClick={() => setSelected(c.id)}>
-              <div className="flex items-center gap-2.5">
-                <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center text-lg font-extrabold" style={{ background: `${c.color}20`, border: `1px solid ${c.color}40`, color: c.color }}>{c.icon}</div>
-                <div>
-                  <div className="font-bold text-sm text-[#E8EAF0]">{c.symbol}</div>
-                  <div className="text-[11px] text-[#6A7090]">{c.name}</div>
-                </div>
-                {selected === c.id && <div className="ml-auto w-5 h-5 rounded-full bg-[#C9A84C] flex items-center justify-center text-[11px] text-[#080A0F] font-extrabold">✓</div>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {crypto && (
-        <div className="card fade-up p-6 mb-5">
-          <div className="text-xs text-[#C9A84C] font-bold tracking-[0.1em] mb-5">SEND PAYMENT TO</div>
-          <div className="flex gap-6 items-start flex-col sm:flex-row">
-            <div className="flex-1 w-full">
-              <div className="text-xs text-[#6A7090] mb-1.5">Amount</div>
-              <div className="text-[26px] font-black text-[#E8EAF0] mb-5">${total} <span className="text-[15px] text-[#C9A84C]">in {crypto.symbol}</span></div>
-              <div className="text-xs text-[#6A7090] mb-2">{crypto.name} Wallet Address</div>
-              <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.1)] rounded-[10px] p-3 px-3.5 mb-3">
-                <div className="text-[11px] text-[#C9A84C] font-mono break-all leading-[1.6]">{secureConfig?.address || crypto.address}</div>
-              </div>
-              <button className={`btn-gold w-full p-[11px] rounded-[10px] text-[13px] ${copied ? "copied" : ""}`} onClick={copy}>{copied ? "✓ COPIED!" : "📋 COPY ADDRESS"}</button>
-            </div>
-            <div className="text-center w-full sm:w-auto flex flex-col items-center">
-              <div className="text-xs text-[#6A7090] mb-2.5">Scan QR Code</div>
-              {(secureConfig?.qr || crypto.qr) ? (
-                <div className="bg-white p-2 rounded-xl inline-block">
-                  <img src={secureConfig?.qr || crypto.qr || ""} alt="QR Code" className="w-[150px] h-[150px] block object-contain" />
-                </div>
-              ) : (
-                <div className="w-[166px] h-[166px] bg-[rgba(255,255,255,0.04)] border-2 border-dashed border-[rgba(255,255,255,0.1)] rounded-xl flex flex-col items-center justify-center gap-2">
-                  <span className="text-[28px]">🔲</span>
-                  <span className="text-[11px] text-[#5A607A] text-center leading-[1.5]">QR code not uploaded yet</span>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mt-5 bg-[rgba(255,183,0,0.06)] border border-[rgba(255,183,0,0.2)] rounded-[10px] p-3 px-4">
-            <div className="text-xs text-[#FFB300] font-bold">⚠ IMPORTANT</div>
-            <div className="text-xs text-[#9AA0B4] mt-1 leading-[1.6]">Send the exact amount in {crypto.symbol}. After sending, click below to get your order ID and contact our Telegram support for delivery.</div>
-          </div>
-        </div>
-      )}
       <button 
-        className="btn-gold w-full p-4 rounded-xl text-[15px]" 
-        style={{ opacity: canPay ? 1 : 0.5, pointerEvents: canPay ? "auto" : "none" }} 
-        onClick={() => onPaid(orderId, email, crypto?.symbol || "")}
+        className="group flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[#6A7090] hover:text-[#D4AF37] transition-colors mb-10" 
+        onClick={() => {
+          if (step === 2) setStep(1);
+          else onBack();
+        }}
       >
-        ✅ I HAVE SENT PAYMENT →
+        <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
+        {step === 2 ? "Back to Details" : "Back to Cart"}
       </button>
-      {!canPay && (
-        <p className="text-center text-xs text-[#5A607A] mt-2.5">
-          {!selected ? "Select a payment method" : "Enter a valid email address"} to continue
-        </p>
-      )}
+
+      {/* Stepper */}
+      <div className="flex items-center gap-4 mb-10 max-w-[400px] mx-auto">
+        <div className={`flex-1 h-1.5 rounded-full ${step >= 1 ? 'bg-[#C9A84C]' : 'bg-white/10'}`} />
+        <div className={`flex-1 h-1.5 rounded-full ${step >= 2 ? 'bg-[#C9A84C]' : 'bg-white/10'}`} />
+        <div className="flex-1 h-1.5 rounded-full bg-white/10" />
+      </div>
+      
+      <AnimatePresence mode="wait">
+        {step === 1 && (
+          <motion.div
+            key="step1"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-6"
+          >
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-white mb-3">Order Details</h1>
+              <p className="text-[#9AA0B4]">Please review your order and select a payment method.</p>
+            </div>
+
+            <div className="card p-6 border border-white/5">
+              <div className="text-[10px] text-[#C9A84C] font-black tracking-widest uppercase mb-4">Summary ({cart.length} items)</div>
+              
+              <div className="space-y-4 mb-6 pb-6 border-b border-white/5">
+                {cart.map(item => (
+                  <div key={item.product.id} className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      {item.product.image ? (
+                        <img src={item.product.image} className="w-10 h-10 rounded-lg object-cover border border-white/10" alt={item.product.name} />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center text-xl">{item.product.icon}</div>
+                      )}
+                      <div>
+                        <div className="font-bold text-white text-sm">{item.product.name}</div>
+                        <div className="text-[11px] text-[#6A7090]">Qty: {item.qty} × ${item.product.price}</div>
+                      </div>
+                    </div>
+                    <div className="font-bold text-white">${item.product.price * item.qty}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center mb-6">
+                <div className="text-sm font-bold text-[#9AA0B4]">Total Due</div>
+                <div className="text-2xl font-black text-[#C9A84C]">${total.toLocaleString()}</div>
+              </div>
+
+              <div className="space-y-2 mb-2">
+                <div className="text-[10px] text-[#C9A84C] font-black tracking-widest uppercase ml-1">Delivery Email</div>
+                <input 
+                  type="email" 
+                  placeholder="Enter your email to receive the assets..." 
+                  className="admin-input py-4 px-5 text-sm w-full bg-white/2 border-white/5 focus:border-[#C9A84C]/30 transition-all rounded-xl"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                />
+                {!isValidEmail(email) && email.length > 0 && (
+                  <div className="text-[10px] text-[#FF4444] mt-1 ml-1 font-medium">Please enter a valid email address.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="card p-6 border border-white/5">
+              <div className="text-[10px] text-[#C9A84C] font-black tracking-widest uppercase mb-4">Payment Method</div>
+              <div className="grid grid-cols-2 gap-4">
+                {cryptos.map(c => (
+                  <div 
+                    key={c.id} 
+                    className={`crypto-card p-4 rounded-xl cursor-pointer transition-all border ${selected === c.id ? 'border-[#C9A84C] bg-[#C9A84C]/5 shadow-[0_0_20px_rgba(201,168,76,0.1)]' : 'border-white/5 bg-white/2 hover:border-white/20'}`}
+                    onClick={() => setSelected(c.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-[10px] flex items-center justify-center text-lg font-black" style={{ background: `${c.color}15`, color: c.color }}>
+                        {c.icon}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-white text-sm">{c.symbol}</div>
+                        <div className="text-[11px] text-[#6A7090]">{c.name}</div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selected === c.id ? 'border-[#C9A84C] bg-[#C9A84C]' : 'border-white/10'}`}>
+                        {selected === c.id && <span className="text-[#05060A] text-xs font-black">✓</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <motion.button 
+              whileHover={canProceedToPayment ? { scale: 1.01 } : {}}
+              whileTap={canProceedToPayment ? { scale: 0.99 } : {}}
+              className="btn-gold w-full py-5 rounded-xl text-[13px] font-black tracking-[0.2em] uppercase shadow-[0_15px_35px_rgba(212,175,55,0.15)]"
+              style={{ opacity: canProceedToPayment ? 1 : 0.5, cursor: canProceedToPayment ? "pointer" : "not-allowed" }}
+              onClick={() => canProceedToPayment && setStep(2)}
+            >
+              PROCEED TO PAYMENT →
+            </motion.button>
+          </motion.div>
+        )}
+
+        {step === 2 && crypto && (
+          <motion.div
+            key="step2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-6"
+          >
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-white mb-3">Payment Method</h1>
+              <p className="text-[#9AA0B4]">Send the exact amount to the address below.</p>
+            </div>
+
+            <div className="card p-8 border border-white/5 relative overflow-hidden">
+              {/* Order ID & Timer */}
+              <div className="flex justify-between items-center mb-8 border-b border-white/5 pb-6">
+                <div>
+                  <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase mb-1">Order ID</div>
+                  <div className="font-mono text-[#C9A84C] font-bold">{orderId}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase mb-1">Time Remaining</div>
+                  <div className={`font-mono font-bold text-lg ${timeLeft < 300 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                    {formatTime(timeLeft)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-8 items-center md:items-start mb-8">
+                <div className="w-[180px] h-[180px] shrink-0 bg-white p-3 rounded-2xl flex items-center justify-center">
+                  {(secureConfig?.qr || crypto.qr) ? (
+                    <img src={secureConfig?.qr || crypto.qr || ""} alt="QR Code" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="w-full h-full bg-[#f8f9fa] rounded-xl border-2 border-dashed border-[#e9ecef] flex flex-col items-center justify-center gap-2">
+                      <span className="text-3xl">🔲</span>
+                      <span className="text-[10px] text-[#adb5bd] text-center font-medium px-4">No QR Configured</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 w-full text-center md:text-left space-y-6">
+                  <div>
+                    <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase mb-1">Amount to send</div>
+                    <div className="text-4xl font-black text-white">
+                      ${total.toLocaleString()} <span className="text-lg text-[#C9A84C] font-bold">in {crypto.symbol}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase mb-2">Destination Address ({crypto.name})</div>
+                    <div className="bg-[#0A0C14] border border-white/5 rounded-xl p-4 mb-3 flex items-center justify-between gap-4">
+                      <div className="text-xs text-[#C9A84C] font-mono break-all font-medium text-left">
+                        {secureConfig?.address || crypto.address}
+                      </div>
+                    </div>
+                    <button 
+                      onClick={copy}
+                      className={`w-full py-3 rounded-lg text-[11px] font-black tracking-widest uppercase transition-all ${
+                        copied ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-white hover:bg-white/10 border border-white/5'
+                      }`}
+                    >
+                      {copied ? "✓ Address Copied!" : "📋 Copy Address"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex gap-4 items-start">
+                <span className="text-xl">⚠️</span>
+                <div>
+                  <div className="text-xs font-bold text-red-400 uppercase tracking-wider mb-1">Important Notice</div>
+                  <div className="text-[11px] text-red-300/80 leading-relaxed">
+                    Please send the exact amount requested above. Any other amount may cause your order to fail or be delayed. Once the transaction is sent from your wallet, click the confirmation button below.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <motion.button 
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              className="btn-gold w-full py-5 rounded-xl text-[13px] font-black tracking-[0.2em] uppercase shadow-[0_15px_35px_rgba(212,175,55,0.15)]"
+              onClick={() => onPaid(orderId, email, crypto.symbol)}
+            >
+              ✅ I HAVE SENT PAYMENT
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -13,10 +13,11 @@ import { HomePage } from "./components/HomePage";
 import { ProductPage } from "./components/ProductPage";
 import { PaymentPage } from "./components/PaymentPage";
 import { ConfirmPage } from "./components/ConfirmPage";
+import { CartPage } from "./components/CartPage";
 import { AdminPage } from "./components/AdminPage";
 import { AuthPage } from "./components/AuthPage";
 import { INITIAL_PRODUCTS, INITIAL_CRYPTOS } from "./constants";
-import { Product, Crypto, Order, Review } from "./types";
+import { Product, Crypto, Order, Review, CartItem } from "./types";
 import { supabase, OperationType, handleSupabaseError } from "./supabase";
 import { User } from "@supabase/supabase-js";
 import { TELEGRAM_LINK } from "./constants";
@@ -41,6 +42,7 @@ function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [hasRedirected, setHasRedirected] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cryptos, setCryptos] = useState<Crypto[]>(INITIAL_CRYPTOS);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -180,7 +182,7 @@ function AppContent() {
   if (!user) {
     return (
       <div className="min-h-screen bg-[#080A0F] text-[#E8EAF0] font-sans">
-        <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} user={null} />
+        <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} onCart={() => navigate("/cart")} cartItemCount={0} user={null} />
         <AuthPage />
         {telegramButton}
       </div>
@@ -189,13 +191,14 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-[#080A0F] text-[#E8EAF0] font-sans">
-      <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} user={user} secureMode={secureMode} />
+      <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} onCart={() => navigate("/cart")} cartItemCount={cart.reduce((sum, item) => sum + item.qty, 0)} user={user} secureMode={secureMode} />
       {!isAdminPage && <Ticker />}
       
       <main>
         <Routes>
           <Route path="/" element={
             <HomePage 
+              user={user}
               products={products} 
               reviews={reviews}
               settings={settings}
@@ -203,11 +206,21 @@ function AppContent() {
             />
           } />
           
-          <Route path="/product/:id" element={<ProductPageRoute products={products} navigate={navigate} />} />
+          <Route path="/product/:id" element={<ProductPageRoute products={products} navigate={navigate} cart={cart} setCart={setCart} />} />
           
-          <Route path="/payment/:id/:qty" element={<PaymentPageRoute products={products} cryptos={cryptos} navigate={navigate} />} />
+          <Route path="/cart" element={
+            <CartPage 
+              cart={cart}
+              onUpdateQty={(id, qty) => setCart(prev => prev.map(i => i.product.id === id ? { ...i, qty } : i))}
+              onRemove={id => setCart(prev => prev.filter(i => i.product.id !== id))}
+              onCheckout={() => navigate("/checkout")}
+              onBack={() => navigate("/")}
+            />
+          } />
           
-          <Route path="/confirm/:id/:qty/:orderId" element={<ConfirmPageRoute products={products} settings={settings} navigate={navigate} />} />
+          <Route path="/checkout" element={<PaymentPageRoute cart={cart} cryptos={cryptos} navigate={navigate} setCart={setCart} />} />
+          
+          <Route path="/confirm/:orderId" element={<ConfirmPageRoute cart={cart} setCart={setCart} settings={settings} navigate={navigate} />} />
           
           <Route path="/admin" element={
             <AdminPage 
@@ -231,7 +244,7 @@ function AppContent() {
   );
 }
 
-function ProductPageRoute({ products, navigate }: { products: Product[], navigate: any }) {
+function ProductPageRoute({ products, navigate, cart, setCart }: { products: Product[], navigate: any, cart: CartItem[], setCart: any }) {
   const { id } = useParams();
   const product = products.find(p => p.id === Number(id));
   
@@ -241,24 +254,36 @@ function ProductPageRoute({ products, navigate }: { products: Product[], navigat
     <ProductPage 
       product={product} 
       onBack={() => navigate("/")} 
-      onOrder={(_p, q) => navigate(`/payment/${product.id}/${q}`)} 
+      onAddToCart={(_p, q) => {
+        setCart((prev: CartItem[]) => {
+          const existing = prev.find(item => item.product.id === product.id);
+          if (existing) {
+            return prev.map(item => item.product.id === product.id ? { ...item, qty: item.qty + q } : item);
+          }
+          return [...prev, { product: _p, qty: q }];
+        });
+        navigate("/cart");
+      }} 
     />
   );
 }
 
-function PaymentPageRoute({ products, cryptos, navigate }: { products: Product[], cryptos: Crypto[], navigate: any }) {
-  const { id, qty } = useParams();
-  const product = products.find(p => p.id === Number(id));
-  
-  if (!product) return <div className="p-20 text-center">Product not found</div>;
+function PaymentPageRoute({ cart, cryptos, navigate, setCart }: { cart: CartItem[], cryptos: Crypto[], navigate: any, setCart: any }) {
+  if (!cart || cart.length === 0) {
+    navigate("/");
+    return null;
+  }
   
   const handlePaid = async (orderId: string, email: string, cryptoSymbol: string) => {
-    const order: Order = {
+    const total = cart.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
+    const combinedName = cart.map(item => `${item.qty}x ${item.product.name}`).join(', ');
+    
+    const order = {
       id: orderId,
-      productId: product.id,
-      productName: product.name,
-      qty: Number(qty),
-      total: product.price * Number(qty),
+      productId: cart[0].product.id,
+      productName: combinedName,
+      qty: cart.reduce((sum, item) => sum + item.qty, 0),
+      total: total,
       cryptoSymbol,
       email,
       timestamp: Date.now(),
@@ -267,58 +292,54 @@ function PaymentPageRoute({ products, cryptos, navigate }: { products: Product[]
     
     try {
       const { error: dbError } = await supabase.from('orders').insert([order]);
+      if (dbError) console.error("Database insert error:", dbError);
       
-      if (dbError) {
-        console.error("Database insert error:", dbError);
-      }
-      
-      // Send confirmation email
       fetch("/api/send-confirmation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           orderId,
-          productName: product.name,
-          qty: Number(qty),
-          total: product.price * Number(qty),
+          productName: combinedName,
+          qty: order.qty,
+          total: total,
           cryptoSymbol
         })
       }).catch(err => console.error("Email API failed", err));
-
-      navigate(`/confirm/${product.id}/${qty}/${orderId}`);
+      
+      navigate(`/confirm/${orderId}`);
     } catch (e) {
       console.error("Failed to save order", e);
-      // Fallback to navigation even if save fails for demo purposes, 
-      // but in real app we'd show an error
-      navigate(`/confirm/${product.id}/${qty}/${orderId}`);
+      navigate(`/confirm/${orderId}`);
     }
   };
   
   return (
     <PaymentPage 
-      product={product} 
-      qty={Number(qty)} 
-      cryptos={cryptos} 
-      onBack={() => navigate(`/product/${product.id}`)} 
-      onPaid={handlePaid} 
+      cart={cart}
+      cryptos={cryptos || []}
+      onBack={() => navigate("/cart")}
+      onPaid={handlePaid}
     />
   );
 }
 
-function ConfirmPageRoute({ products, settings, navigate }: { products: Product[], settings: { telegramLink: string }, navigate: any }) {
-  const { id, qty, orderId } = useParams();
-  const product = products.find(p => p.id === Number(id));
+function ConfirmPageRoute({ cart, setCart, settings, navigate }: { cart: CartItem[], setCart: any, settings: { telegramLink: string }, navigate: any }) {
+  const { orderId } = useParams();
   
-  if (!product || !orderId) return <div className="p-20 text-center">Order not found</div>;
+  if (!cart || cart.length === 0 || !orderId) {
+    return <div className="p-20 text-center">Order not found or cart empty</div>;
+  }
   
   return (
     <ConfirmPage 
-      orderId={orderId} 
-      product={product} 
-      qty={Number(qty)} 
+      orderId={orderId}
+      cart={cart}
       settings={settings}
-      onHome={() => navigate("/")} 
+      onHome={() => {
+        setCart([]); // Clear cart after successful order!
+        navigate("/");
+      }}
     />
   );
 }

@@ -2,16 +2,22 @@ import React from 'react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="border-t border-[rgba(255,255,255,0.05)] py-10 px-6 bg-[#060810]">
-      <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#C9A84C] to-[#A07830] flex items-center justify-center text-sm">⚡</div>
-          <span className="text-lg font-bold text-white">VaultShop</span>
+    <footer className="border-t border-white/5 py-16 mt-20 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-[#D4AF37]/5 via-transparent to-transparent pointer-events-none" />
+      <div className="max-w-[1400px] mx-auto px-6 text-center relative z-10">
+        <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center text-2xl mx-auto mb-6">⚡</div>
+        <div className="text-[#C9A84C] font-serif font-bold text-2xl mb-4 tracking-tight">VaultShop</div>
+        <p className="text-[11px] text-[#6A7090] max-w-[550px] mx-auto leading-relaxed uppercase tracking-widest mb-8 font-medium">
+          VaultShop provides premium, verified digital products. All payments are secure and final. 24/7 VIP Support available via Telegram.
+        </p>
+        <div className="flex justify-center gap-6 mb-8">
+          <span className="text-[10px] font-black text-[#5A607A] uppercase tracking-[0.2em] hover:text-[#C9A84C] cursor-pointer transition-colors">Terms of Service</span>
+          <span className="text-[10px] font-black text-[#5A607A] uppercase tracking-[0.2em] hover:text-[#C9A84C] cursor-pointer transition-colors">Privacy Policy</span>
+          <span className="text-[10px] font-black text-[#5A607A] uppercase tracking-[0.2em] hover:text-[#C9A84C] cursor-pointer transition-colors">Contact Us</span>
         </div>
-        <div className="flex gap-8 flex-wrap justify-center">
-          {["Terms", "Privacy", "FAQ", "Support"].map(l => <span key={l} className="text-sm text-[#6A7090] hover:text-[#C9A84C] transition-colors cursor-pointer">{l}</span>)}
+        <div className="text-[10px] text-[#5A607A] font-medium tracking-wider">
+          © {new Date().getFullYear()} VaultShop. Premium Products. All rights reserved.
         </div>
-        <span className="text-xs text-[#5A607A]">© 2026 VaultShop. All rights reserved.</span>
       </div>
     </footer>
   );
