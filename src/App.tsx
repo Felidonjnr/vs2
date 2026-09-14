@@ -266,7 +266,11 @@ function PaymentPageRoute({ products, cryptos, navigate }: { products: Product[]
     };
     
     try {
-      await supabase.from('orders').insert([order]);
+      const { error: dbError } = await supabase.from('orders').insert([order]);
+      
+      if (dbError) {
+        console.error("Database insert error:", dbError);
+      }
       
       // Send confirmation email
       fetch("/api/send-confirmation", {

@@ -109,6 +109,72 @@ async function startServer() {
     }
   });
 
+  // API Route: Send Order Update Email
+  app.post("/api/send-update", async (req, res) => {
+    const { email, orderId, productName, status } = req.body;
+    if (!email || !orderId || !status) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    console.log(`Sending status update for order ${orderId} (${status}) to ${email}`);
+
+    if (!resend) {
+      console.warn("RESEND_API_KEY not found. Update email not sent.");
+      return res.json({ success: true, message: "Email logged to console (No API Key)" });
+    }
+
+    try {
+      const fromEmail = process.env.EMAIL_FROM || "onboarding@resend.dev";
+      
+      let subject = "";
+      let htmlContent = "";
+
+      if (status === "completed") {
+        subject = `Payment Received - Order Completed (${orderId})`;
+        htmlContent = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+            <h2 style="color: #00E676;">Payment Confirmed!</h2>
+            <p>Great news! We have successfully received your payment for <strong>${productName}</strong>.</p>
+            <p>Your order (<strong>${orderId}</strong>) is now marked as <strong>Completed</strong>.</p>
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p>Your digital product/gift card is ready. If it requires a code or manual delivery, our team is sending it to this email address shortly.</p>
+            </div>
+            <p style="color: #666; font-size: 12px; margin-top: 30px;">Thank you for shopping at VaultShop!</p>
+          </div>
+        `;
+      } else if (status === "cancelled") {
+        subject = `Order Cancelled (${orderId})`;
+        htmlContent = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+            <h2 style="color: #FF4444;">Order Cancelled</h2>
+            <p>Your order for <strong>${productName}</strong> (<strong>${orderId}</strong>) has been cancelled.</p>
+            <p>This usually happens if payment was not received within the required timeframe or if an invalid amount was sent.</p>
+            <p style="color: #666; font-size: 12px; margin-top: 30px;">If you believe this was a mistake, please contact our support team on Telegram.</p>
+          </div>
+        `;
+      } else {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      const { data, error } = await resend.emails.send({
+        from: `VaultShop <${fromEmail}>`, 
+        to: [email],
+        subject: subject,
+        html: htmlContent,
+      });
+
+      if (error) {
+        console.error("Resend Error:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.json({ success: true, data });
+    } catch (err) {
+      console.error("Server Error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

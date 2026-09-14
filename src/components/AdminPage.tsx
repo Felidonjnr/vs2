@@ -214,11 +214,19 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
     reader.readAsDataURL(file);
   };
 
-  const updateOrderStatus = async (orderId: string, status: Order['status']) => {
+  const updateOrderStatus = async (orderId: string, status: Order['status'], email: string, productName: string) => {
     try {
       const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
       if (error) throw error;
       saveMsg(`Order ${status}`);
+      
+      // Ping the backend to send the status update email to the customer
+      fetch("/api/send-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, orderId, productName, status })
+      }).catch(err => console.error("Update Email API failed", err));
+
     } catch (e) { 
       handleSupabaseError(e, OperationType.UPDATE, `orders/${orderId}`);
     }
@@ -760,13 +768,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
                     <>
                       <button 
                         className="bg-[#00E676] hover:bg-[#00C853] text-[#0D1017] px-5 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all shadow-lg" 
-                        onClick={() => updateOrderStatus(o.id, 'completed')}
+                        onClick={() => updateOrderStatus(o.id, 'completed', o.email, o.productName)}
                       >
                         Complete
                       </button>
                       <button 
                         className="bg-white/5 hover:bg-white/10 border border-white/10 text-white px-5 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all" 
-                        onClick={() => updateOrderStatus(o.id, 'cancelled')}
+                        onClick={() => updateOrderStatus(o.id, 'cancelled', o.email, o.productName)}
                       >
                         Cancel
                       </button>
