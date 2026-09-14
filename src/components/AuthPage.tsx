@@ -16,6 +16,7 @@ export const AuthPage: React.FC = () => {
     setError(null);
     setMessage(null);
     setLoading(true);
+
     try {
       if (isSignUp) {
         const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
@@ -32,17 +33,6 @@ export const AuthPage: React.FC = () => {
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogle = async () => {
-    setError(null);
-    setMessage(null);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
-      if (error) throw error;
-    } catch (err: any) {
-      setError("Google sign-in is not configured yet in your Supabase project. " + err.message);
     }
   };
 
@@ -134,7 +124,6 @@ export const AuthPage: React.FC = () => {
                 {error}
               </motion.div>
             )}
-
             {message && (
               <motion.div 
                 initial={{ opacity: 0, height: 0 }}
@@ -152,25 +141,11 @@ export const AuthPage: React.FC = () => {
             whileTap={{ scale: 0.98 }}
             type="submit" 
             disabled={loading}
-            className="btn-gold w-full py-5 rounded-2xl text-[12px] font-black tracking-[0.2em] uppercase shadow-[0_20px_40px_rgba(212,175,55,0.15)]"
+            className="btn-gold w-full py-5 rounded-2xl text-[12px] font-black tracking-[0.2em] uppercase shadow-[0_20px_40px_rgba(212,175,55,0.15)] mt-4"
           >
             {loading ? "AUTHENTICATING..." : isSignUp ? "CREATE ACCOUNT" : "SIGN IN"}
           </motion.button>
         </form>
-
-        <div className="relative my-10">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
-          <div className="relative flex justify-center text-[9px] uppercase tracking-[0.3em]"><span className="bg-[#10131C] px-6 text-[#5A607A] font-black">Or Continue With</span></div>
-        </div>
-
-        <motion.button 
-          whileHover={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
-          onClick={handleGoogle}
-          className="w-full bg-white/2 border border-white/5 py-4 rounded-2xl text-[11px] font-black tracking-widest flex items-center justify-center gap-4 transition-all text-white uppercase"
-        >
-          <img src="https://www.google.com/favicon.ico" className="w-4 h-4 grayscale opacity-70" alt="Google" />
-          Google Authentication
-        </motion.button>
 
         <div className="mt-10 text-center">
           <button 
