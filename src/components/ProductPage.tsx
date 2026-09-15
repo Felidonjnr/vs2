@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
 
 interface ProductPageProps {
@@ -10,6 +10,13 @@ interface ProductPageProps {
 
 export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAddToCart }) => {
   const [qty, setQty] = useState(1);
+  const [isAdded, setIsAdded] = useState(false);
+
+  const handleAddToCart = () => {
+    onAddToCart(product, qty);
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 2000);
+  };
 
   const stockColor = (s: number) => s <= 3 ? "#FF4444" : s <= 7 ? "#FFB347" : "#00E676";
 
@@ -128,12 +135,103 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
         <motion.button 
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
-          className="btn-gold w-full py-5 rounded-xl text-[13px] font-black tracking-[0.2em] uppercase flex items-center justify-center gap-2 shadow-[0_15px_35px_rgba(212,175,55,0.15)]" 
-          onClick={() => onAddToCart(product, qty)}
+          className={`w-full py-5 rounded-xl text-[13px] font-black tracking-[0.2em] uppercase flex items-center justify-center gap-2 transition-all duration-300 ${
+            isAdded 
+              ? "bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/30 shadow-[0_15px_35px_rgba(0,230,118,0.15)]" 
+              : "btn-gold shadow-[0_15px_35px_rgba(212,175,55,0.15)]"
+          }`}
+          onClick={handleAddToCart}
+          disabled={isAdded}
         >
-          <span>🔐</span> ADD TO CART
+          <AnimatePresence mode="wait">
+            {isAdded ? (
+              <motion.div
+                key="added"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center gap-2"
+              >
+                <span>✨</span> ADDED TO CART
+              </motion.div>
+            ) : (
+              <motion.div
+                key="add"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center gap-2"
+              >
+                <span>🔐</span> ADD TO CART
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.button>
       </div>
     </motion.div>
+  );
+};
+
+export const ProductPageSkeleton: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  return (
+    <div className="max-w-[800px] mx-auto px-5 pb-20 pt-10">
+      <button 
+        className="group flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[#6A7090] hover:text-[#D4AF37] transition-colors mb-10 opacity-50 cursor-not-allowed" 
+      >
+        <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span> 
+        Back to Store
+      </button>
+
+      <div className="card p-8 relative overflow-hidden">
+        <div className="flex gap-8 items-start mb-10 flex-wrap md:flex-nowrap">
+          <div className="w-20 h-20 shrink-0 rounded-2xl bg-white/5 animate-pulse" />
+          
+          <div className="flex-1 w-full">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="h-3 w-20 bg-white/5 rounded-full animate-pulse" />
+              <div className="h-3 w-12 bg-white/5 rounded-full animate-pulse" />
+            </div>
+            <div className="h-8 w-3/4 max-w-[300px] bg-white/5 rounded-lg animate-pulse mb-4" />
+            <div className="h-5 w-24 bg-white/5 rounded-full animate-pulse" />
+          </div>
+        </div>
+
+        <div className="bg-white/2 border border-white/5 rounded-xl p-6 mb-10 space-y-3">
+          <div className="h-3 w-32 bg-white/5 rounded-full animate-pulse mb-4" />
+          <div className="h-4 w-full bg-white/5 rounded-full animate-pulse" />
+          <div className="h-4 w-5/6 bg-white/5 rounded-full animate-pulse" />
+          <div className="h-4 w-4/6 bg-white/5 rounded-full animate-pulse" />
+        </div>
+
+        <div className="space-y-6 mb-12">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-2.5 h-2.5 rounded-full bg-white/10 animate-pulse" />
+              <div className="h-4 w-40 bg-white/5 rounded-full animate-pulse" />
+            </div>
+            <div className="h-3 w-24 bg-white/5 rounded-full animate-pulse" />
+          </div>
+          
+          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden" />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-12 items-end">
+          <div className="space-y-2 text-center sm:text-left flex flex-col items-center sm:items-start">
+            <div className="h-3 w-16 bg-white/5 rounded-full animate-pulse" />
+            <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
+          </div>
+          <div className="space-y-3 flex flex-col items-center sm:items-start">
+            <div className="h-3 w-24 bg-white/5 rounded-full animate-pulse" />
+            <div className="h-12 w-[200px] bg-white/5 rounded-lg animate-pulse" />
+          </div>
+          <div className="space-y-2 text-center md:text-left sm:col-span-2 md:col-span-1 flex flex-col items-center md:items-start">
+            <div className="h-3 w-20 bg-white/5 rounded-full animate-pulse" />
+            <div className="h-8 w-32 bg-white/5 rounded-lg animate-pulse" />
+          </div>
+        </div>
+
+        <div className="h-[60px] w-full bg-white/5 rounded-xl animate-pulse" />
+      </div>
+    </div>
   );
 };

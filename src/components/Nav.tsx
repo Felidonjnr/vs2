@@ -23,6 +23,7 @@ export const Nav: React.FC<NavProps> = ({ onHome, onAdmin, onCart, cartItemCount
         </div>
 
         <div className="flex items-center gap-3 sm:gap-6">
+          {user && (
           <button 
             onClick={onCart}
             className="relative flex items-center gap-2 text-[10px] font-black tracking-widest uppercase text-white hover:text-[#D4AF37] transition-colors bg-white/5 px-4 py-2.5 rounded-full border border-white/10 hover:border-[#D4AF37]/30"
@@ -34,6 +35,7 @@ export const Nav: React.FC<NavProps> = ({ onHome, onAdmin, onCart, cartItemCount
               </span>
             )}
           </button>
+          )}
 
           {user && (
             <>

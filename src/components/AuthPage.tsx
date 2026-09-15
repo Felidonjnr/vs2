@@ -6,12 +6,24 @@ export const AuthPage: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    
+    if (isSignUp && password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    
+    setLoading(true);
     e.preventDefault();
     setError(null);
     setMessage(null);
@@ -23,7 +35,7 @@ export const AuthPage: React.FC = () => {
         if (signUpError) throw signUpError;
         
         if (data?.user && !data?.session) {
-          setMessage("Registration successful! Please check your email to verify your account. If you don't require verification, disable it in Supabase.");
+          setIsSuccess(true);
         }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
@@ -41,14 +53,19 @@ export const AuthPage: React.FC = () => {
       setError("Please enter your email first.");
       return;
     }
+    setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
       if (error) throw error;
       setResetSent(true);
       setError(null);
-      setMessage("Recovery link dispatched to your inbox.");
+      setMessage("Recovery link dispatched to your inbox. Check your spam folder if you don't see it.");
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,10 +91,29 @@ export const AuthPage: React.FC = () => {
           <h1 className="text-3xl font-serif font-black text-white mb-3 tracking-tight">
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-sm text-[#6A7090] font-light">Sign in to access your digital products</p>
+          <p className="text-sm text-[#6A7090] font-light">{isSignUp ? "Register to secure your assets" : "Sign in to access your digital products"}</p>
         </div>
 
+        
+        {isSuccess ? (
+          <div className="text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-[#00E676]/10 border border-[#00E676]/30 flex items-center justify-center text-3xl mx-auto mb-6 shadow-[0_15px_35px_rgba(0,230,118,0.15)]">
+              ✨
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Check your email</h2>
+            <p className="text-sm text-[#9AA0B4] leading-relaxed font-medium mb-8">
+              We've sent a verification link to <span className="text-[#C9A84C] font-bold">{email}</span>. Please click the link to activate your premium account.
+            </p>
+            <button 
+              onClick={() => { setIsSuccess(false); setIsSignUp(false); }}
+              className="btn-outline w-full py-4 rounded-xl text-[11px] font-black tracking-[0.2em] uppercase border-white/20"
+            >
+              RETURN TO SIGN IN
+            </button>
+          </div>
+        ) : (
         <form onSubmit={handleAuth} className="space-y-6">
+
           <div className="space-y-2">
             <label className="text-[10px] text-[#6A7090] font-black tracking-[0.2em] uppercase ml-1">Email Address</label>
             <input 
@@ -113,6 +149,29 @@ export const AuthPage: React.FC = () => {
             />
           </div>
 
+          <AnimatePresence>
+            {isSignUp && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-2 overflow-hidden"
+              >
+                <div className="pt-2">
+                  <label className="text-[10px] text-[#6A7090] font-black tracking-[0.2em] uppercase ml-1">Confirm Password</label>
+                  <input 
+                    type="password" 
+                    className="admin-input py-4 px-5 text-sm bg-white/2 border-white/5 focus:border-[#D4AF37]/30 transition-all rounded-2xl mt-2 w-full" 
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    required={isSignUp}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence mode="wait">
             {error && (
               <motion.div 
@@ -146,10 +205,11 @@ export const AuthPage: React.FC = () => {
             {loading ? "AUTHENTICATING..." : isSignUp ? "CREATE ACCOUNT" : "SIGN IN"}
           </motion.button>
         </form>
+        )}
 
         <div className="mt-10 text-center">
           <button 
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => { setIsSignUp(!isSignUp); setError(null); setMessage(null); setPassword(""); setConfirmPassword(""); setIsSuccess(false); }}
             className="text-[11px] text-[#6A7090] tracking-wider uppercase font-medium"
           >
             {isSignUp ? "Existing member? " : "New to the platform? "}

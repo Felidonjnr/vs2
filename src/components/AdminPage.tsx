@@ -76,7 +76,28 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
     };
   }, [isSupabaseAuth]);
 
+  
+  const handleDeleteUser = async (uid: string, email: string) => {
+    if (!window.confirm(`Are you sure you want to completely delete user ${email}?`)) return;
+    
+    try {
+      const res = await fetch(`/api/users/${uid}`, { method: 'DELETE' });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        alert("Failed to delete user: " + (data.error || "Unknown error"));
+        return;
+      }
+      
+      // Update UI
+      setUsers(prev => prev.filter(u => u.uid !== uid));
+    } catch (err) {
+      alert("Error deleting user: " + err);
+    }
+  };
+
   // Sync secure settings from Supabase
+
   useEffect(() => {
     if (!isSupabaseAuth || !secureMode) return;
     
@@ -123,12 +144,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
     setTimeout(() => setSaved(null), 2500); 
   };
   
-  const updateProduct = async (id: number, field: keyof Product, value: any) => {
+  const updateProductLocal = (id: number, field: keyof Product, value: any) => {
+    setProducts(products.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const updateProductDB = async (id: number, field: keyof Product, value: any) => {
     try {
       const existing = products.find(p => p.id === id);
       if (!existing) return;
       const { error } = await supabase.from('products').upsert({ ...existing, [field]: value });
       if (error) throw error;
+      saveMsg("✅ Saved!");
     } catch (e) { 
       handleSupabaseError(e, OperationType.WRITE, `products/${id}`);
     }
@@ -136,6 +162,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
   
   const deleteProduct = async (id: number) => { 
     try {
+      setProducts(products.filter(p => p.id !== id));
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
       saveMsg("Product deleted."); 
@@ -158,6 +185,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
       tag: newProd.tag || null 
     };
     try {
+      setProducts([...products, p as any]);
       const { error } = await supabase.from('products').insert([p]);
       if (error) throw error;
       setNewProd({ name: "", category: "Shopping", price: "", stock: "", icon: "🎁", description: "", tag: "" });
@@ -171,6 +199,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
     try {
       const existing = cryptos.find(c => c.id === id);
       if (!existing) return;
+      setCryptos(cryptos.map(c => c.id === id ? { ...c, [field]: value } : c));
       const { error } = await supabase.from('cryptos').upsert({ ...existing, [field]: value });
       if (error) throw error;
     } catch (e) { 
@@ -185,6 +214,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
     }
     const id = newCrypto.symbol.toLowerCase();
     try {
+      setCryptos([...cryptos, { ...newCrypto, id, qr: null }]);
       const { error } = await supabase.from('cryptos').insert([{ ...newCrypto, id, qr: null }]);
       if (error) throw error;
       setNewCrypto({ name: "", symbol: "", icon: "₿", color: "#F7931A", address: "" });
@@ -196,6 +226,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
 
   const deleteCrypto = async (id: string) => {
     try {
+      setCryptos(cryptos.filter(c => c.id !== id));
       const { error } = await supabase.from('cryptos').delete().eq('id', id);
       if (error) throw error;
       saveMsg("Crypto deleted.");
@@ -216,6 +247,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
 
   const updateOrderStatus = async (orderId: string, status: Order['status'], email: string, productName: string) => {
     try {
+      setOrders(orders.map(o => o.id === orderId ? { ...o, status } : o));
       const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
       if (error) throw error;
       saveMsg(`Order ${status}`);
@@ -226,7 +258,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, orderId, productName, status })
       }).catch(err => console.error("Update Email API failed", err));
-
     } catch (e) { 
       handleSupabaseError(e, OperationType.UPDATE, `orders/${orderId}`);
     }
@@ -244,6 +275,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
     try {
+      setReviews([...reviews, r as any]);
       const { error } = await supabase.from('reviews').insert([r]);
       if (error) throw error;
       setNewReview({ name: "", rating: 5, text: "", avatar: "" });
@@ -255,6 +287,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
 
   const deleteReview = async (id: string) => {
     try {
+      setReviews(reviews.filter(r => r.id !== id));
       const { error } = await supabase.from('reviews').delete().eq('id', id);
       if (error) throw error;
       saveMsg("Review deleted.");
@@ -404,7 +437,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            key={i} 
+            key={`stat-${i}`} 
             className="card p-6 border-l-4"
             style={{ borderLeftColor: s.color }}
           >
@@ -631,6 +664,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
                     <div>
                       <div className="text-base font-bold text-white flex items-center gap-3">
                         {u.email}
+
                         {isActive && (
                           <span className="text-[9px] bg-[#00E676]/10 text-[#00E676] px-2 py-0.5 rounded-full uppercase tracking-widest font-bold border border-[#00E676]/20">
                             Active
@@ -641,7 +675,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
                     </div>
                   </div>
                   
-                  <div className="flex gap-10 flex-wrap">
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => handleDeleteUser(u.uid, u.email)}
+                      className="text-[9px] bg-red-500/10 text-red-500 hover:bg-red-500/20 px-3 py-1.5 rounded-full uppercase tracking-widest font-bold border border-red-500/20 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  
+                  <div className="flex gap-10 flex-wrap w-full md:w-auto mt-4 md:mt-0">
+
                     <div className="space-y-1">
                       <div className="text-[9px] text-[#5A607A] font-bold uppercase tracking-[0.2em]">Orders</div>
                       <div className="text-xs text-[#C9A84C] font-bold">{orders.filter(o => o.email === u.email).length}</div>
@@ -813,25 +857,30 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
                   <div className="w-14 h-14 rounded-xl bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center text-3xl shrink-0">{p.icon}</div>
                   <div className="flex-[2] min-w-[200px] space-y-2">
                     <label className="text-[9px] text-[#5A607A] font-bold tracking-widest uppercase">Product Name</label>
-                    <input className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" value={p.name} onChange={e => updateProduct(p.id, "name", e.target.value)} onBlur={() => saveMsg("✅ Saved!")} />
+                    <input className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" value={p.name} onChange={e => updateProductLocal(p.id, "name", e.target.value)} onBlur={e => updateProductDB(p.id, "name", e.target.value)} />
                   </div>
                   <div className="flex-1 min-w-[150px] space-y-2">
                     <label className="text-[9px] text-[#5A607A] font-bold tracking-widest uppercase">Category</label>
-                    <select className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all cursor-pointer" value={p.category} onChange={e => { updateProduct(p.id, "category", e.target.value); saveMsg("✅ Saved!"); }}>
-                      {["Shopping", "Gaming", "Streaming", "Entertainment", "Mobile"].map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <input 
+                      type="text"
+                      className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" 
+                      value={p.category} 
+                      onChange={e => updateProductLocal(p.id, "category", e.target.value)}
+                      onBlur={e => updateProductDB(p.id, "category", e.target.value)}
+                      list="category-options"
+                    />
                   </div>
                   <div className="min-w-[100px] space-y-2">
                     <label className="text-[9px] text-[#5A607A] font-bold tracking-widest uppercase">Price ($)</label>
-                    <input className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" type="number" value={p.price} onChange={e => updateProduct(p.id, "price", Number(e.target.value))} onBlur={() => saveMsg("✅ Saved!")} />
+                    <input className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" type="number" value={p.price} onChange={e => updateProductLocal(p.id, "price", Number(e.target.value))} onBlur={e => updateProductDB(p.id, "price", Number(e.target.value))} />
                   </div>
                   <div className="min-w-[100px] space-y-2">
                     <label className="text-[9px] text-[#5A607A] font-bold tracking-widest uppercase">Stock</label>
-                    <input className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" type="number" value={p.stock} onChange={e => updateProduct(p.id, "stock", Number(e.target.value))} onBlur={() => saveMsg("✅ Saved!")} />
+                    <input className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" type="number" value={p.stock} onChange={e => updateProductLocal(p.id, "stock", Number(e.target.value))} onBlur={e => updateProductDB(p.id, "stock", Number(e.target.value))} />
                   </div>
                   <div className="min-w-[100px] space-y-2">
                     <label className="text-[9px] text-[#5A607A] font-bold tracking-widest uppercase">Tag</label>
-                    <select className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all cursor-pointer" value={p.tag || ""} onChange={e => { updateProduct(p.id, "tag", e.target.value || null); saveMsg("✅ Saved!"); }}>
+                    <select className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all cursor-pointer" value={p.tag || ""} onChange={e => { updateProductLocal(p.id, "tag", e.target.value || null); updateProductDB(p.id, "tag", e.target.value || null); }}>
                       {["", "HOT", "SALE", "LOW"].map(t => <option key={t} value={t}>{t || "None"}</option>)}
                     </select>
                   </div>
@@ -844,7 +893,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
                 </div>
                 <div className="mt-6 space-y-2">
                   <label className="text-[9px] text-[#5A607A] font-bold tracking-widest uppercase ml-1">Description</label>
-                  <input className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" value={p.description} onChange={e => updateProduct(p.id, "description", e.target.value)} onBlur={() => saveMsg("✅ Saved!")} />
+                  <input className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" value={p.description} onChange={e => updateProductLocal(p.id, "description", e.target.value)} onBlur={e => updateProductDB(p.id, "description", e.target.value)} />
                 </div>
               </motion.div>
             ))}
@@ -998,7 +1047,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
                       <div className="text-lg font-bold text-white leading-tight">{r.name}</div>
                       <div className="flex gap-1 mt-1.5">
                         {[...Array(5)].map((_, i) => (
-                          <span key={i} className={`text-[10px] ${i < r.rating ? 'text-[#C9A84C]' : 'text-white/10'}`}>★</span>
+                          <span key={`star-${r.id}-${i}`} className={`text-[10px] ${i < r.rating ? 'text-[#C9A84C]' : 'text-white/10'}`}>★</span>
                         ))}
                       </div>
                     </div>
@@ -1089,9 +1138,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] text-[#6A7090] font-bold tracking-widest uppercase ml-1">Category</label>
-                <select className="admin-input py-4 px-6 rounded-xl bg-white/2 border-white/5 focus:border-[#C9A84C]/30 transition-all cursor-pointer" value={newProd.category} onChange={e => setNewProd(p => ({ ...p, category: e.target.value }))}>
-                  {["Shopping", "Gaming", "Streaming", "Entertainment", "Mobile"].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <input 
+                  type="text"
+                  className="admin-input py-4 px-6 rounded-xl bg-white/2 border-white/5 focus:border-[#C9A84C]/30 transition-all" 
+                  value={newProd.category} 
+                  onChange={e => setNewProd(p => ({ ...p, category: e.target.value }))}
+                  list="category-options"
+                  placeholder="e.g. Shopping"
+                />
+                <datalist id="category-options">
+                  {Array.from(new Set(products.map(p => p.category))).map(c => <option key={c} value={c} />)}
+                </datalist>
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] text-[#6A7090] font-bold tracking-widest uppercase ml-1">Price (USD)</label>

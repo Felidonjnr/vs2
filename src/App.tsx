@@ -10,12 +10,13 @@ import { Nav } from "./components/Nav";
 import { Ticker } from "./components/Ticker";
 import { Footer } from "./components/Footer";
 import { HomePage } from "./components/HomePage";
-import { ProductPage } from "./components/ProductPage";
+import { ProductPage, ProductPageSkeleton } from "./components/ProductPage";
 import { PaymentPage } from "./components/PaymentPage";
 import { ConfirmPage } from "./components/ConfirmPage";
 import { CartPage } from "./components/CartPage";
 import { AdminPage } from "./components/AdminPage";
 import { AuthPage } from "./components/AuthPage";
+import { UpdatePasswordPage } from "./components/UpdatePasswordPage";
 import { INITIAL_PRODUCTS, INITIAL_CRYPTOS } from "./constants";
 import { Product, Crypto, Order, Review, CartItem } from "./types";
 import { supabase, OperationType, handleSupabaseError } from "./supabase";
@@ -41,10 +42,12 @@ function AppContent() {
   const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [isRecovering, setIsRecovering] = useState(false);
   const [hasRedirected, setHasRedirected] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [cryptos, setCryptos] = useState<Crypto[]>(INITIAL_CRYPTOS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [cryptos, setCryptos] = useState<Crypto[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [settings, setSettings] = useState({ telegramLink: TELEGRAM_LINK });
   const [secureMode, setSecureMode] = useState(false);
@@ -56,11 +59,21 @@ function AppContent() {
       setAuthLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) setHasRedirected(false);
+      
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecovering(true);
+      }
+      
       setAuthLoading(false);
     });
+    
+    // Also check URL hash for recovery token manually on mount to be extra safe
+    if (window.location.hash && window.location.hash.includes('type=recovery')) {
+      setIsRecovering(true);
+    }
 
     return () => subscription.unsubscribe();
   }, []);
@@ -128,9 +141,12 @@ function AppContent() {
       }
     };
 
-    fetchProducts();
-    fetchCryptos();
-    fetchReviews();
+    const fetchAll = async () => {
+      setIsLoadingData(true);
+      await Promise.all([fetchProducts(), fetchCryptos(), fetchReviews()]);
+      setIsLoadingData(false);
+    };
+    fetchAll();
 
     const dataSub = supabase.channel('data-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchProducts)
@@ -179,6 +195,16 @@ function AppContent() {
     </motion.a>
   );
 
+  if (isRecovering) {
+    return (
+      <div className="min-h-screen bg-[#080A0F] text-[#E8EAF0] font-sans">
+        <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} onCart={() => navigate("/cart")} cartItemCount={0} user={null} />
+        <UpdatePasswordPage onComplete={() => setIsRecovering(false)} />
+        {telegramButton}
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen bg-[#080A0F] text-[#E8EAF0] font-sans">
@@ -202,11 +228,12 @@ function AppContent() {
               products={products} 
               reviews={reviews}
               settings={settings}
+              isLoading={isLoadingData}
               onProduct={p => navigate(`/product/${p.id}`)} 
             />
           } />
           
-          <Route path="/product/:id" element={<ProductPageRoute products={products} navigate={navigate} cart={cart} setCart={setCart} />} />
+          <Route path="/product/:id" element={<ProductPageRoute products={products} navigate={navigate} cart={cart} setCart={setCart} isLoading={isLoadingData} />} />
           
           <Route path="/cart" element={
             <CartPage 
@@ -244,10 +271,11 @@ function AppContent() {
   );
 }
 
-function ProductPageRoute({ products, navigate, cart, setCart }: { products: Product[], navigate: any, cart: CartItem[], setCart: any }) {
+function ProductPageRoute({ products, navigate, cart, setCart, isLoading }: { products: Product[], navigate: any, cart: CartItem[], setCart: any, isLoading?: boolean }) {
   const { id } = useParams();
   const product = products.find(p => p.id === Number(id));
   
+  if (isLoading) return <ProductPageSkeleton onBack={() => navigate("/")} />;
   if (!product) return <div className="p-20 text-center">Product not found</div>;
   
   return (
