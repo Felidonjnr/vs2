@@ -1,5 +1,20 @@
 export const INITIAL_PRODUCTS = [
-  { id: 1, name: "Amazon Gift Card", category: "Shopping", price: 25, stock: 14, icon: "🛒", description: "Shop millions of items instantly on Amazon. Works globally.", tag: "HOT" },
+  { 
+    id: 1, 
+    name: "Daily Pay", 
+    category: "Finance", 
+    price: 70.50, 
+    stock: 14, 
+    icon: "💵", 
+    description: "Receive instant payouts daily. Choose the tier that fits your needs.", 
+    tag: "HOT",
+    variants: [
+      { id: "v1", name: "Daily pay [$1200-$2000]", price: 70.50 },
+      { id: "v2", name: "Daily pay [$2000-$5000]", price: 100.00 },
+      { id: "v3", name: "Daily pay [$5000-$7000]", price: 230.00 },
+      { id: "v4", name: "Daily pay [$7000]", price: 300.00 }
+    ]
+  },
   { id: 2, name: "iTunes Gift Card", category: "Entertainment", price: 15, stock: 7, icon: "🎵", description: "Buy music, movies, apps and more from Apple.", tag: "SALE" },
   { id: 3, name: "Steam Wallet Code", category: "Gaming", price: 20, stock: 22, icon: "🎮", description: "Top up your Steam wallet and buy any game.", tag: null },
   { id: 4, name: "Netflix Gift Card", category: "Streaming", price: 30, stock: 3, icon: "🎬", description: "Stream unlimited movies and TV series on Netflix.", tag: "LOW" },

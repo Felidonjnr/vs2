@@ -31,12 +31,8 @@ const ProductCardSkeleton = () => (
         <div className="h-2 w-20 bg-white/5 rounded animate-pulse" />
       </div>
       
-      <div className="flex items-center justify-between pt-6 border-t border-white/5">
-        <div className="flex flex-col gap-1">
-          <div className="h-2 w-10 bg-white/5 rounded animate-pulse" />
-          <div className="h-6 w-16 bg-white/5 rounded animate-pulse" />
-        </div>
-        <div className="h-9 w-20 bg-white/5 rounded-lg animate-pulse" />
+      <div className="pt-6 border-t border-white/5">
+        <div className="h-10 w-full bg-white/5 rounded-xl animate-pulse" />
       </div>
     </div>
   </div>
@@ -196,12 +192,10 @@ export const HomePage: React.FC<HomePageProps> = ({ user, products, reviews, set
                       </span>
                     </div>
                     
-                    <div className="flex items-center justify-between pt-6 border-t border-white/5">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-[#5A607A] uppercase font-black tracking-[0.2em] mb-1">Value</span>
-                        <span className="text-xl font-bold text-white">${p.price}</span>
-                      </div>
-                      <button className="btn-gold px-5 py-2.5 rounded-lg text-[10px] tracking-widest">VIEW</button>
+                    <div className="pt-6 border-t border-white/5">
+                      <button className="w-full btn-gold px-5 py-3 rounded-xl text-[11px] font-black tracking-widest uppercase flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(212,175,55,0.1)]">
+                        VIEW OPTIONS
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -260,12 +254,10 @@ export const HomePage: React.FC<HomePageProps> = ({ user, products, reviews, set
                           </span>
                         </div>
                         
-                        <div className="flex items-center justify-between pt-6 border-t border-white/5">
-                          <div className="flex flex-col">
-                            <span className="text-[9px] text-[#5A607A] uppercase font-black tracking-[0.2em] mb-1">Value</span>
-                            <span className="text-xl font-bold text-white">${p.price}</span>
-                          </div>
-                          <button className="btn-gold px-5 py-2.5 rounded-lg text-[10px] tracking-widest">VIEW</button>
+                        <div className="pt-6 border-t border-white/5">
+                          <button className="w-full btn-gold px-5 py-3 rounded-xl text-[11px] font-black tracking-widest uppercase flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(212,175,55,0.1)]">
+                            VIEW OPTIONS
+                          </button>
                         </div>
                       </div>
                     </motion.div>

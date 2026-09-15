@@ -1,18 +1,26 @@
+export interface ProductVariant {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface Product {
   id: number;
   name: string;
   category: string;
-  price: number;
+  price: number; // Base or starting price
   stock: number;
   icon: string;
   image?: string;
   rating?: number;
   description: string;
   tag: string | null;
+  variants?: ProductVariant[];
 }
 
 export interface CartItem {
   product: Product;
+  variant?: ProductVariant; // The chosen variant
   qty: number;
 }
 

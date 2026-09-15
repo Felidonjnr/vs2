@@ -21,7 +21,7 @@ export const PaymentPage: React.FC<PaymentPageProps> = ({ cart, cryptos, onBack,
   // Timer state (15 minutes)
   const [timeLeft, setTimeLeft] = useState(15 * 60);
 
-  const total = cart.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
+  const total = cart.reduce((sum, item) => sum + ((item.variant?.price || item.product.price) * item.qty), 0);
   const crypto = cryptos.find(c => c.id === selected);
 
   // Timer countdown
@@ -110,22 +110,29 @@ export const PaymentPage: React.FC<PaymentPageProps> = ({ cart, cryptos, onBack,
               <div className="text-[10px] text-[#C9A84C] font-black tracking-widest uppercase mb-4">Summary ({cart.length} items)</div>
               
               <div className="space-y-4 mb-6 pb-6 border-b border-white/5">
-                {cart.map(item => (
-                  <div key={item.product.id} className="flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                      {item.product.image ? (
-                        <img src={item.product.image} className="w-10 h-10 rounded-lg object-cover border border-white/10" alt={item.product.name} />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center text-xl">{item.product.icon}</div>
-                      )}
-                      <div>
-                        <div className="font-bold text-white text-sm">{item.product.name}</div>
-                        <div className="text-[11px] text-[#6A7090]">Qty: {item.qty} × ${item.product.price}</div>
+                {cart.map(item => {
+                  const cartItemId = `${item.product.id}-${item.variant?.id || ''}`;
+                  const itemPrice = item.variant?.price || item.product.price;
+                  return (
+                    <div key={cartItemId} className="flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        {item.product.image ? (
+                          <img src={item.product.image} className="w-10 h-10 rounded-lg object-cover border border-white/10" alt={item.product.name} />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center text-xl">{item.product.icon}</div>
+                        )}
+                        <div>
+                          <div className="font-bold text-white text-sm">
+                            {item.product.name}
+                            {item.variant && <span className="text-[#9AA0B4] ml-2 font-normal text-xs border border-white/10 px-1.5 py-0.5 rounded bg-white/5">{item.variant.name}</span>}
+                          </div>
+                          <div className="text-[11px] text-[#6A7090]">Qty: {item.qty} × ${itemPrice}</div>
+                        </div>
                       </div>
+                      <div className="font-bold text-white">${itemPrice * item.qty}</div>
                     </div>
-                    <div className="font-bold text-white">${item.product.price * item.qty}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="flex justify-between items-center mb-6">

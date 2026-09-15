@@ -12,7 +12,7 @@ interface ConfirmPageProps {
 
 export const ConfirmPage: React.FC<ConfirmPageProps> = ({ orderId, cart, settings, onHome }) => {
   const [copied, setCopied] = useState(false);
-  const total = cart.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
+  const total = cart.reduce((sum, item) => sum + ((item.variant?.price || item.product.price) * item.qty), 0);
 
   const copy = () => {
      navigator.clipboard.writeText(orderId).catch(() => {});
@@ -92,12 +92,19 @@ export const ConfirmPage: React.FC<ConfirmPageProps> = ({ orderId, cart, setting
           
           <div className="py-2 space-y-3">
             <span className="text-xs text-[#6A7090] font-bold uppercase tracking-wider block mb-2">Items</span>
-            {cart.map(item => (
-              <div key={item.product.id} className="flex justify-between items-center">
-                <span className="text-sm text-white">{item.qty}x {item.product.name}</span>
-                <span className="text-sm text-white/50">${item.product.price * item.qty}</span>
-              </div>
-            ))}
+            {cart.map(item => {
+              const cartItemId = `${item.product.id}-${item.variant?.id || ''}`;
+              const itemPrice = item.variant?.price || item.product.price;
+              return (
+                <div key={cartItemId} className="flex justify-between items-center">
+                  <span className="text-sm text-white">
+                    {item.qty}x {item.product.name}
+                    {item.variant && <span className="text-[#9AA0B4] ml-2 font-normal text-xs">{item.variant.name}</span>}
+                  </span>
+                  <span className="text-sm text-white/50">${itemPrice * item.qty}</span>
+                </div>
+              );
+            })}
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t border-white/5">

@@ -29,7 +29,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
   const [localThreshold, setLocalThreshold] = useState<string>("1500");
   const [newSecureWallet, setNewSecureWallet] = useState({ id: "", address: "", qr: null as string | null });
   const [saved, setSaved] = useState<string | null>(null);
-  const [newProd, setNewProd] = useState({ name: "", category: "Shopping", price: "", stock: "", icon: "🎁", description: "", tag: "" });
+  const [newProd, setNewProd] = useState({ name: "", category: "Shopping", price: "", stock: "", icon: "🎁", description: "", tag: "", variants: [] as any[] });
   const [newReview, setNewReview] = useState({ name: "", rating: 5, text: "", avatar: "" });
   const [newCrypto, setNewCrypto] = useState({ name: "", symbol: "", icon: "₿", color: "#F7931A", address: "" });
   const [searchQuery, setSearchQuery] = useState("");
@@ -186,18 +186,23 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
       return; 
     }
     const id = Date.now();
+
     const p = { 
-      ...newProd, 
+      name: newProd.name,
+      category: newProd.category,
+      description: newProd.description,
+      icon: newProd.icon,
       id, 
       price: Number(newProd.price), 
       stock: Number(newProd.stock), 
-      tag: newProd.tag || null 
+      tag: newProd.tag || null,
+      variants: newProd.variants
     };
     try {
       setProducts([...products, p as any]);
       const { error } = await supabase.from('products').insert([p]);
       if (error) throw error;
-      setNewProd({ name: "", category: "Shopping", price: "", stock: "", icon: "🎁", description: "", tag: "" });
+      setNewProd({ name: "", category: "Shopping", price: "", stock: "", icon: "🎁", description: "", tag: "", variants: [] });
       saveMsg("✅ Product added!");
     } catch (e) { 
       handleSupabaseError(e, OperationType.WRITE, `products/${id}`);
@@ -914,6 +919,36 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
                   <label className="text-[9px] text-[#5A607A] font-bold tracking-widest uppercase ml-1">Description</label>
                   <input className="admin-input py-3 px-4 rounded-xl bg-white/5 border-white/10 focus:border-[#C9A84C]/30 transition-all" value={p.description} onChange={e => updateProductLocal(p.id, "description", e.target.value)} onBlur={e => updateProductDB(p.id, "description", e.target.value)} />
                 </div>
+                <div className="mt-4 space-y-2">
+                  <label className="text-[9px] text-[#5A607A] font-bold tracking-widest uppercase ml-1">Variants (Optional)</label>
+                  <div className="space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                    {(p.variants || []).map((v, i) => (
+                      <div key={i} className="flex gap-3 items-center">
+                        <input className="admin-input flex-1 py-2 px-3 rounded-lg bg-white/5 border-white/10 text-xs focus:border-[#C9A84C]/30" placeholder="Variant Name" value={v.name} onChange={e => {
+                          const newVariants = [...(p.variants || [])];
+                          newVariants[i] = { ...v, name: e.target.value };
+                          updateProductLocal(p.id, "variants", newVariants);
+                        }} onBlur={() => updateProductDB(p.id, "variants", p.variants)} />
+                        <input className="admin-input w-24 py-2 px-3 rounded-lg bg-white/5 border-white/10 text-xs focus:border-[#C9A84C]/30" type="number" placeholder="Price ($)" value={v.price} onChange={e => {
+                          const newVariants = [...(p.variants || [])];
+                          newVariants[i] = { ...v, price: Number(e.target.value) };
+                          updateProductLocal(p.id, "variants", newVariants);
+                        }} onBlur={() => updateProductDB(p.id, "variants", p.variants)} />
+                        <button className="text-red-400 hover:text-red-300 w-8 h-8 rounded-lg bg-white/5 hover:bg-red-400/10 flex items-center justify-center shrink-0 transition-colors" onClick={() => {
+                          const newVariants = [...(p.variants || [])];
+                          newVariants.splice(i, 1);
+                          updateProductLocal(p.id, "variants", newVariants);
+                          updateProductDB(p.id, "variants", newVariants);
+                        }}>×</button>
+                      </div>
+                    ))}
+                    <button className="text-[#C9A84C] text-[10px] font-bold tracking-widest uppercase hover:text-white transition-colors bg-white/5 px-3 py-2 rounded-lg" onClick={() => {
+                      const newVariants = [...(p.variants || []), { id: `v${Date.now()}`, name: "", price: 0 }];
+                      updateProductLocal(p.id, "variants", newVariants);
+                      // Don't auto-save to DB yet since it's an empty variant, wait for blur
+                    }}>+ Add Variant</button>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -1192,9 +1227,37 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
               </div>
             </div>
 
-            <div className="mb-12 space-y-3">
+            <div className="mb-6 space-y-3">
               <label className="text-[10px] text-[#6A7090] font-bold tracking-widest uppercase ml-1">Description</label>
               <textarea className="admin-input py-4 px-6 rounded-xl bg-white/2 border-white/5 focus:border-[#C9A84C]/30 transition-all min-h-[100px] resize-none" placeholder="Product details..." value={newProd.description} onChange={e => setNewProd(p => ({ ...p, description: e.target.value }))} />
+            </div>
+
+            <div className="mb-12 space-y-3">
+              <label className="text-[10px] text-[#6A7090] font-bold tracking-widest uppercase ml-1">Variants (Optional)</label>
+              <div className="space-y-3 bg-white/2 p-4 rounded-xl border border-white/5">
+                {(newProd.variants || []).map((v, i) => (
+                  <div key={i} className="flex gap-3 items-center">
+                    <input className="admin-input flex-1 py-3 px-4 rounded-lg bg-white/5 border-white/10 text-xs focus:border-[#C9A84C]/30" placeholder="Variant Name (e.g. 500 V-Bucks)" value={v.name} onChange={e => {
+                      const newVariants = [...(newProd.variants || [])];
+                      newVariants[i] = { ...v, name: e.target.value };
+                      setNewProd(p => ({ ...p, variants: newVariants }));
+                    }} />
+                    <input className="admin-input w-24 py-3 px-4 rounded-lg bg-white/5 border-white/10 text-xs focus:border-[#C9A84C]/30" type="number" placeholder="Price ($)" value={v.price} onChange={e => {
+                      const newVariants = [...(newProd.variants || [])];
+                      newVariants[i] = { ...v, price: Number(e.target.value) };
+                      setNewProd(p => ({ ...p, variants: newVariants }));
+                    }} />
+                    <button className="text-red-400 hover:text-red-300 w-10 h-10 rounded-lg bg-white/5 hover:bg-red-400/10 flex items-center justify-center shrink-0 transition-colors" onClick={() => {
+                      const newVariants = [...(newProd.variants || [])];
+                      newVariants.splice(i, 1);
+                      setNewProd(p => ({ ...p, variants: newVariants }));
+                    }}>×</button>
+                  </div>
+                ))}
+                <button className="text-[#C9A84C] text-[10px] font-bold tracking-widest uppercase hover:text-white transition-colors bg-white/5 px-4 py-2 rounded-lg" onClick={() => {
+                  setNewProd(p => ({ ...p, variants: [...(p.variants || []), { id: `v${Date.now()}`, name: "", price: 0 }] }));
+                }}>+ Add Variant</button>
+              </div>
             </div>
 
             <div className="flex gap-4">

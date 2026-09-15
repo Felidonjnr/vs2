@@ -1,19 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product } from '../types';
+import { Product, ProductVariant } from '../types';
 
 interface ProductPageProps {
   product: Product;
   onBack: () => void;
-  onAddToCart: (product: Product, qty: number) => void;
+  onAddToCart: (product: Product, qty: number, variant?: ProductVariant) => void;
 }
 
 export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAddToCart }) => {
   const [qty, setQty] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+
+  useEffect(() => {
+    setQty(1);
+    setSelectedVariant(null);
+  }, [product.id]);
+
+  const hasVariants = product.variants && product.variants.length > 0;
+  const currentPrice = hasVariants && selectedVariant ? selectedVariant.price : product.price;
 
   const handleAddToCart = () => {
-    onAddToCart(product, qty);
+    if (hasVariants && !selectedVariant) return;
+    onAddToCart(product, qty, selectedVariant || undefined);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };
@@ -103,34 +113,98 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-12 items-end">
-          <div className="space-y-2 text-center sm:text-left">
-            <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase">Price</div>
-            <div className="text-3xl font-bold text-[#C9A84C]">${product.price.toLocaleString()}</div>
+        {hasVariants ? (
+          <div className="mb-12">
+            <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase mb-4">Select Option</div>
+            <div className="space-y-3">
+              {product.variants!.map((variant) => (
+                <button
+                  key={variant.id}
+                  onClick={() => setSelectedVariant(variant)}
+                  className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${
+                    selectedVariant?.id === variant.id 
+                      ? 'border-[#00E676] bg-[#00E676]/5' 
+                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                      selectedVariant?.id === variant.id ? 'border-[#00E676]' : 'border-white/20'
+                    }`}>
+                      {selectedVariant?.id === variant.id && <div className="w-2 h-2 bg-[#00E676] rounded-full" />}
+                    </div>
+                    <span className={`font-medium ${selectedVariant?.id === variant.id ? 'text-white' : 'text-[#9AA0B4]'}`}>
+                      {variant.name}
+                    </span>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    selectedVariant?.id === variant.id 
+                      ? 'bg-[#00E676]/10 text-[#00E676]' 
+                      : 'bg-[#C9A84C]/10 text-[#C9A84C]'
+                  }`}>
+                    ${variant.price.toLocaleString()} USD
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {selectedVariant && (
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-8 items-end border-t border-white/5 pt-8">
+                <div className="space-y-3">
+                  <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase text-center sm:text-left">Select Quantity</div>
+                  <div className="flex items-center bg-white/5 rounded-lg overflow-hidden border border-white/10 h-12 max-w-[200px] mx-auto sm:mx-0">
+                    <button 
+                      onClick={() => setQty(q => Math.max(1, q - 1))} 
+                      className="flex-1 h-full hover:bg-white/5 text-[#C9A84C] text-xl transition-colors font-medium"
+                    >
+                      −
+                    </button>
+                    <span className="w-12 text-center text-lg font-bold text-white">{qty}</span>
+                    <button 
+                      onClick={() => setQty(q => Math.min(product.stock, q + 1))} 
+                      className="flex-1 h-full hover:bg-white/5 text-[#C9A84C] text-xl transition-colors font-medium"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2 text-center md:text-left">
+                  <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase">Total Price</div>
+                  <div className="text-3xl font-bold text-white">${(currentPrice * qty).toLocaleString()}</div>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="space-y-3">
-            <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase text-center sm:text-left">Select Quantity</div>
-            <div className="flex items-center bg-white/5 rounded-lg overflow-hidden border border-white/10 h-12 max-w-[200px] mx-auto sm:mx-0">
-              <button 
-                onClick={() => setQty(q => Math.max(1, q - 1))} 
-                className="flex-1 h-full hover:bg-white/5 text-[#C9A84C] text-xl transition-colors font-medium"
-              >
-                −
-              </button>
-              <span className="w-12 text-center text-lg font-bold text-white">{qty}</span>
-              <button 
-                onClick={() => setQty(q => Math.min(product.stock, q + 1))} 
-                className="flex-1 h-full hover:bg-white/5 text-[#C9A84C] text-xl transition-colors font-medium"
-              >
-                +
-              </button>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-12 items-end">
+            <div className="space-y-2 text-center sm:text-left">
+              <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase">Price</div>
+              <div className="text-3xl font-bold text-[#C9A84C]">${product.price.toLocaleString()}</div>
+            </div>
+            <div className="space-y-3">
+              <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase text-center sm:text-left">Select Quantity</div>
+              <div className="flex items-center bg-white/5 rounded-lg overflow-hidden border border-white/10 h-12 max-w-[200px] mx-auto sm:mx-0">
+                <button 
+                  onClick={() => setQty(q => Math.max(1, q - 1))} 
+                  className="flex-1 h-full hover:bg-white/5 text-[#C9A84C] text-xl transition-colors font-medium"
+                >
+                  −
+                </button>
+                <span className="w-12 text-center text-lg font-bold text-white">{qty}</span>
+                <button 
+                  onClick={() => setQty(q => Math.min(product.stock, q + 1))} 
+                  className="flex-1 h-full hover:bg-white/5 text-[#C9A84C] text-xl transition-colors font-medium"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2 text-center md:text-left sm:col-span-2 md:col-span-1">
+              <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase">Total Price</div>
+              <div className="text-3xl font-bold text-white">${(currentPrice * qty).toLocaleString()}</div>
             </div>
           </div>
-          <div className="space-y-2 text-center md:text-left sm:col-span-2 md:col-span-1">
-            <div className="text-[10px] text-[#6A7090] font-black tracking-widest uppercase">Total Price</div>
-            <div className="text-3xl font-bold text-white">${(product.price * qty).toLocaleString()}</div>
-          </div>
-        </div>
+        )}
 
         <motion.button 
           whileHover={{ scale: 1.01 }}
@@ -138,10 +212,12 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
           className={`w-full py-5 rounded-xl text-[13px] font-black tracking-[0.2em] uppercase flex items-center justify-center gap-2 transition-all duration-300 ${
             isAdded 
               ? "bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/30 shadow-[0_15px_35px_rgba(0,230,118,0.15)]" 
-              : "btn-gold shadow-[0_15px_35px_rgba(212,175,55,0.15)]"
+              : hasVariants && !selectedVariant
+                ? "bg-white/5 text-[#6A7090] cursor-not-allowed border border-white/10"
+                : "btn-gold shadow-[0_15px_35px_rgba(212,175,55,0.15)]"
           }`}
           onClick={handleAddToCart}
-          disabled={isAdded}
+          disabled={isAdded || (hasVariants && !selectedVariant)}
         >
           <AnimatePresence mode="wait">
             {isAdded ? (
@@ -153,6 +229,16 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
                 className="flex items-center gap-2"
               >
                 <span>✨</span> ADDED TO CART
+              </motion.div>
+            ) : hasVariants && !selectedVariant ? (
+              <motion.div
+                key="select"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center gap-2"
+              >
+                PLEASE SELECT AN OPTION
               </motion.div>
             ) : (
               <motion.div

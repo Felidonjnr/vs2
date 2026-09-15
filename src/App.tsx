@@ -245,8 +245,8 @@ function AppContent() {
           <Route path="/cart" element={
             <CartPage 
               cart={cart}
-              onUpdateQty={(id, qty) => setCart(prev => prev.map(i => i.product.id === id ? { ...i, qty } : i))}
-              onRemove={id => setCart(prev => prev.filter(i => i.product.id !== id))}
+              onUpdateQty={(cartItemId, qty) => setCart(prev => prev.map(i => `${i.product.id}-${i.variant?.id || ''}` === cartItemId ? { ...i, qty } : i))}
+              onRemove={cartItemId => setCart(prev => prev.filter(i => `${i.product.id}-${i.variant?.id || ''}` !== cartItemId))}
               onCheckout={() => navigate("/checkout")}
               onBack={() => navigate("/")}
             />
@@ -297,13 +297,21 @@ function ProductPageRoute({ products, navigate, cart, setCart, isLoading }: { pr
     <ProductPage 
       product={product} 
       onBack={() => navigate("/")} 
-      onAddToCart={(_p, q) => {
+      onAddToCart={(_p, q, variant) => {
         setCart((prev: CartItem[]) => {
-          const existing = prev.find(item => item.product.id === product.id);
+          // Check if same product AND same variant are already in cart
+          const existing = prev.find(item => 
+            item.product.id === product.id && 
+            item.variant?.id === variant?.id
+          );
           if (existing) {
-            return prev.map(item => item.product.id === product.id ? { ...item, qty: item.qty + q } : item);
+            return prev.map(item => 
+              item.product.id === product.id && item.variant?.id === variant?.id 
+                ? { ...item, qty: item.qty + q } 
+                : item
+            );
           }
-          return [...prev, { product: _p, qty: q }];
+          return [...prev, { product: _p, variant, qty: q }];
         });
         navigate("/cart");
       }} 
@@ -318,8 +326,8 @@ function PaymentPageRoute({ cart, cryptos, navigate, setCart }: { cart: CartItem
   }
   
   const handlePaid = async (orderId: string, email: string, cryptoSymbol: string) => {
-    const total = cart.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
-    const combinedName = cart.map(item => `${item.qty}x ${item.product.name}`).join(', ');
+    const total = cart.reduce((sum, item) => sum + ((item.variant?.price || item.product.price) * item.qty), 0);
+    const combinedName = cart.map(item => `${item.qty}x ${item.product.name}${item.variant ? ` (${item.variant.name})` : ''}`).join(', ');
     
     const order = {
       id: orderId,
