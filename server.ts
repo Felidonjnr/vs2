@@ -99,7 +99,7 @@ async function startServer() {
 
       if (error) {
         console.error("Resend Error:", error);
-        return res.status(500).json({ error: error.message });
+        if (error.name === "validation_error") return res.json({ success: false, message: "Email validation failed. Need verified domain.", error: error }); return res.status(500).json({ error: error.message || error });
       }
 
       res.json({ success: true, data });
@@ -165,7 +165,7 @@ async function startServer() {
 
       if (error) {
         console.error("Resend Error:", error);
-        return res.status(500).json({ error: error.message });
+        if (error.name === "validation_error") return res.json({ success: false, message: "Email validation failed. Need verified domain.", error: error }); return res.status(500).json({ error: error.message || error });
       }
 
       res.json({ success: true, data });

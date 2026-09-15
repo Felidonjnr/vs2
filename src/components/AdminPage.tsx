@@ -33,7 +33,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
   const [newReview, setNewReview] = useState({ name: "", rating: 5, text: "", avatar: "" });
   const [newCrypto, setNewCrypto] = useState({ name: "", symbol: "", icon: "₿", color: "#F7931A", address: "" });
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Order['status'] | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<Order['status'] | 'all'>('pending');
+  const [updatingOrders, setUpdatingOrders] = useState<Set<string>>(new Set());
   const fileRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   // Fetch initial data
@@ -63,7 +64,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
     fetchSettings();
 
     const orderSub = supabase.channel('orders-admin-channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchOrders)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setOrders(prev => [payload.new as Order, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o));
+        } else if (payload.eventType === 'DELETE') {
+          setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+        }
+      })
       .subscribe();
       
     const userSub = supabase.channel('users-admin-channel')
@@ -246,8 +255,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
   };
 
   const updateOrderStatus = async (orderId: string, status: Order['status'], email: string, productName: string) => {
+    if (updatingOrders.has(orderId)) return;
+    setUpdatingOrders(prev => new Set(prev).add(orderId));
     try {
-      setOrders(orders.map(o => o.id === orderId ? { ...o, status } : o));
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
       const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
       if (error) throw error;
       saveMsg(`Order ${status}`);
@@ -260,6 +271,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
       }).catch(err => console.error("Update Email API failed", err));
     } catch (e) { 
       handleSupabaseError(e, OperationType.UPDATE, `orders/${orderId}`);
+    } finally {
+      setUpdatingOrders(prev => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
     }
   };
 
@@ -811,14 +828,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ products, setProducts, cry
                   {o.status === 'pending' && (
                     <>
                       <button 
-                        className="bg-[#00E676] hover:bg-[#00C853] text-[#0D1017] px-5 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all shadow-lg" 
+                        className={`px-5 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all shadow-lg ${updatingOrders.has(o.id) ? 'bg-[#00E676]/50 text-[#0D1017]/50 cursor-not-allowed' : 'bg-[#00E676] hover:bg-[#00C853] text-[#0D1017]'}`} 
                         onClick={() => updateOrderStatus(o.id, 'completed', o.email, o.productName)}
+                        disabled={updatingOrders.has(o.id)}
                       >
-                        Complete
+                        {updatingOrders.has(o.id) ? '...' : 'Complete'}
                       </button>
                       <button 
-                        className="bg-white/5 hover:bg-white/10 border border-white/10 text-white px-5 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all" 
+                        className={`border border-white/10 px-5 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${updatingOrders.has(o.id) ? 'bg-white/5 text-white/50 cursor-not-allowed' : 'bg-white/5 hover:bg-white/10 text-white'}`} 
                         onClick={() => updateOrderStatus(o.id, 'cancelled', o.email, o.productName)}
+                        disabled={updatingOrders.has(o.id)}
                       >
                         Cancel
                       </button>
