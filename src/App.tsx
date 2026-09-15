@@ -17,6 +17,7 @@ import { CartPage } from "./components/CartPage";
 import { AdminPage } from "./components/AdminPage";
 import { AuthPage } from "./components/AuthPage";
 import { UpdatePasswordPage } from "./components/UpdatePasswordPage";
+import { ProfilePage } from "./components/ProfilePage";
 import { INITIAL_PRODUCTS, INITIAL_CRYPTOS } from "./constants";
 import { Product, Crypto, Order, Review, CartItem } from "./types";
 import { supabase, OperationType, handleSupabaseError } from "./supabase";
@@ -40,6 +41,12 @@ const getSimulatedStock = (originalStock: number, productId: number) => {
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [isRecovering, setIsRecovering] = useState(false);
@@ -198,7 +205,7 @@ function AppContent() {
   if (isRecovering) {
     return (
       <div className="min-h-screen bg-[#080A0F] text-[#E8EAF0] font-sans">
-        <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} onCart={() => navigate("/cart")} cartItemCount={0} user={null} />
+        <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} onCart={() => navigate("/cart")} onProfile={() => navigate("/profile")} cartItemCount={0} user={null} />
         <UpdatePasswordPage onComplete={() => setIsRecovering(false)} />
         {telegramButton}
       </div>
@@ -208,7 +215,7 @@ function AppContent() {
   if (!user) {
     return (
       <div className="min-h-screen bg-[#080A0F] text-[#E8EAF0] font-sans">
-        <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} onCart={() => navigate("/cart")} cartItemCount={0} user={null} />
+        <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} onCart={() => navigate("/cart")} onProfile={() => navigate("/profile")} cartItemCount={0} user={null} />
         <AuthPage />
         {telegramButton}
       </div>
@@ -217,7 +224,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-[#080A0F] text-[#E8EAF0] font-sans">
-      <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} onCart={() => navigate("/cart")} cartItemCount={cart.reduce((sum, item) => sum + item.qty, 0)} user={user} secureMode={secureMode} />
+      <Nav onHome={() => navigate("/")} onAdmin={() => navigate("/admin")} onCart={() => navigate("/cart")} onProfile={() => navigate("/profile")} cartItemCount={cart.reduce((sum, item) => sum + item.qty, 0)} user={user} secureMode={secureMode} />
       {!isAdminPage && <Ticker />}
       
       <main>
@@ -260,6 +267,14 @@ function AppContent() {
               onBack={() => navigate("/")} 
               secureMode={secureMode}
               setSecureMode={setSecureMode}
+            />
+          } />
+
+          <Route path="/profile" element={
+            <ProfilePage 
+              user={user}
+              onBack={() => navigate("/")}
+              onSignOut={async () => { await supabase.auth.signOut(); navigate("/"); }}
             />
           } />
         </Routes>

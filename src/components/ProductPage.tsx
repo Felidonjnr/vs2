@@ -77,7 +77,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
         </div>
 
         <div className="bg-white/2 border border-white/5 rounded-xl p-6 mb-10">
-          <h3 className="text-[11px] font-black text-[#6A7090] mb-3 tracking-widest uppercase">Product Details</h3>
+          <h2 className="text-[11px] font-black text-[#6A7090] mb-3 tracking-widest uppercase">Product Details</h2>
           <p className="text-sm text-[#9AA0B4] leading-relaxed font-medium">{product.description}</p>
         </div>
 

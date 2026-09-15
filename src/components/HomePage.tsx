@@ -93,17 +93,17 @@ export const HomePage: React.FC<HomePageProps> = ({ user, products, reviews, set
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[900px] mx-auto mt-24 text-left fade-up" style={{ animationDelay: '0.3s' }}>
             <div className="bg-white/2 border border-white/5 rounded-2xl p-6 hover:bg-white/5 transition-colors">
               <div className="text-3xl mb-4 opacity-80">🛡️</div>
-              <h3 className="text-[#C9A84C] font-black text-[11px] tracking-[0.2em] uppercase mb-2">100% Hand-Verified</h3>
+              <h2 className="text-[#C9A84C] font-black text-[11px] tracking-[0.2em] uppercase mb-2">100% Hand-Verified</h2>
               <p className="text-[#6A7090] text-xs leading-relaxed font-medium">Unlike open marketplaces, every asset in our vault is tested and verified prior to listing. Zero invalid keys.</p>
             </div>
             <div className="bg-white/2 border border-white/5 rounded-2xl p-6 hover:bg-white/5 transition-colors">
               <div className="text-3xl mb-4 opacity-80">⚡</div>
-              <h3 className="text-[#C9A84C] font-black text-[11px] tracking-[0.2em] uppercase mb-2">Instant Delivery</h3>
+              <h2 className="text-[#C9A84C] font-black text-[11px] tracking-[0.2em] uppercase mb-2">Instant Delivery</h2>
               <p className="text-[#6A7090] text-xs leading-relaxed font-medium">The moment the blockchain confirms your payment, your product is delivered directly to your email.</p>
             </div>
             <div className="bg-white/2 border border-white/5 rounded-2xl p-6 hover:bg-white/5 transition-colors">
               <div className="text-3xl mb-4 opacity-80">💎</div>
-              <h3 className="text-[#C9A84C] font-black text-[11px] tracking-[0.2em] uppercase mb-2">Premium Selection</h3>
+              <h2 className="text-[#C9A84C] font-black text-[11px] tracking-[0.2em] uppercase mb-2">Premium Selection</h2>
               <p className="text-[#6A7090] text-xs leading-relaxed font-medium">We provide premium, verified keys and products you can trust, unlike open marketplaces.</p>
             </div>
           </div>
